@@ -547,6 +547,30 @@ void bless_hfs(Volume* volume, const char* path)
 	updateVolume(volume);
 }
 
+void autoopen_hfs(Volume* volume, const char* path)
+{
+	HFSPlusCatalogRecord* record;
+	char* name;
+	HFSCatalogNodeID nodeId;
+
+	record = getRecordFromPath(path, volume, &name, NULL);
+	if(record == NULL) {
+		printf("No such file or directory\n");
+		return;
+	}
+
+	if(record->recordType != kHFSPlusFolderRecord) {
+		printf("Not a directory\n");
+		return;
+	}
+
+	nodeId = ((HFSPlusCatalogFolder*)record)->folderID;
+	volume->volumeHeader->finderInfo[2] = nodeId;
+	FLIPENDIAN(volume->volumeHeader->finderInfo[2]);
+
+	updateVolume(volume);
+}
+
 int copyAcrossVolumes(Volume* volume1, Volume* volume2, char* path1, char* path2) {
 	void* buffer;
 	size_t bufferSize;
