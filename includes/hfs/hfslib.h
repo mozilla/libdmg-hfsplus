@@ -15,6 +15,7 @@ extern "C" {
 	void addall_hfs(Volume* volume, const char* dirToMerge, const char* dest);
 	void extractAllInFolder(HFSCatalogNodeID folderID, Volume* volume);
 	int copyAcrossVolumes(Volume* volume1, Volume* volume2, char* path1, char* path2);
+	void bless_hfs(Volume* volume, const char* path);
 
 	void hfs_untar(Volume* volume, AbstractFile* tarFile);
 	void hfs_ls(Volume* volume, const char* path);
