@@ -1051,7 +1051,7 @@ int chmodFile(const char* pathName, int mode, Volume* volume) {
   if(record->recordType == kHFSPlusFolderRecord) {
     ((HFSPlusCatalogFolder*)record)->permissions.fileMode = (((HFSPlusCatalogFolder*)record)->permissions.fileMode & 0770000) | mode;
   } else if(record->recordType == kHFSPlusFileRecord) {
-    ((HFSPlusCatalogFile*)record)->permissions.fileMode = (((HFSPlusCatalogFolder*)record)->permissions.fileMode & 0770000) | mode;
+    ((HFSPlusCatalogFile*)record)->permissions.fileMode = (((HFSPlusCatalogFile*)record)->permissions.fileMode & 0770000) | mode;
   } else {
     return FALSE;
   }
