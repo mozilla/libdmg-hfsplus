@@ -232,6 +232,35 @@ void cmd_grow(Volume* volume, int argc, const char *argv[]) {
 	printf("grew volume: %" PRId64 "\n", newSize);
 }
 
+void cmd_bless(Volume* volume, int argc, const char *argv[]) {
+	if(argc < 2) {
+		printf("Not enough arguments");
+		return;
+	}
+
+	bless_hfs(volume, argv[1]);
+}
+
+void cmd_autoopen(Volume* volume, int argc, const char *argv[]) {
+	if(argc < 2) {
+		printf("Not enough arguments");
+		return;
+	}
+
+	autoopen_hfs(volume, argv[1]);
+}
+
+void cmd_swapforks(Volume* volume, int argc, const char *argv[]) {
+	uint8_t iconStatus;
+
+	if(argc < 2) {
+		printf("Not enough arguments");
+		return;
+	}
+
+	swapforks_hfs(volume, argv[1]);
+}
+
 void TestByteOrder()
 {
 	short int word = 0x0001;
@@ -247,7 +276,7 @@ int main(int argc, const char *argv[]) {
 	TestByteOrder();
 	
 	if(argc < 3) {
-		printf("usage: %s <image-file> <ls|cat|mv|mkdir|add|rm|chmod|extract|extractall|rmall|addall|attr|debug> <arguments>\n", argv[0]);
+		printf("usage: %s <image-file> <ls|cat|mv|mkdir|add|rm|chmod|extract|extractall|rmall|addall|attr|bless|autoopen|swapforks|debug> <arguments>\n", argv[0]);
 		return 0;
 	}
 	
@@ -293,6 +322,12 @@ int main(int argc, const char *argv[]) {
 			cmd_addall(volume, argc - 2, argv + 2);
 		} else if(strcmp(argv[2], "grow") == 0) {
 			cmd_grow(volume, argc - 2, argv + 2);
+		} else if(strcmp(argv[2], "bless") == 0) {
+			cmd_bless(volume, argc - 2, argv + 2);
+		} else if(strcmp(argv[2], "autoopen") == 0) {
+			cmd_autoopen(volume, argc - 2, argv + 2);
+		} else if(strcmp(argv[2], "swapforks") == 0) {
+			cmd_swapforks(volume, argc - 2, argv + 2);
 		} else if(strcmp(argv[2], "debug") == 0) {
 			if(argc > 3 && strcmp(argv[3], "verbose") == 0) {
 				debugBTree(volume->catalogTree, TRUE);

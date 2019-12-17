@@ -523,6 +523,80 @@ void addall_hfs(Volume* volume, const char* dirToMerge, const char* dest) {
 	
 }
 
+void bless_hfs(Volume* volume, const char* path)
+{
+	HFSPlusCatalogRecord* record;
+	char* name;
+	HFSCatalogNodeID nodeId;
+
+	record = getRecordFromPath(path, volume, &name, NULL);
+	if(record == NULL) {
+		printf("No such file or directory\n");
+		return;
+	}
+
+	if(record->recordType != kHFSPlusFolderRecord) {
+		printf("Not a directory\n");
+		return;
+	}
+
+	nodeId = ((HFSPlusCatalogFolder*)record)->folderID;
+	volume->volumeHeader->finderInfo[0] = nodeId;
+	FLIPENDIAN(volume->volumeHeader->finderInfo[0]);
+
+	updateVolume(volume);
+}
+
+void autoopen_hfs(Volume* volume, const char* path)
+{
+	HFSPlusCatalogRecord* record;
+	char* name;
+	HFSCatalogNodeID nodeId;
+
+	record = getRecordFromPath(path, volume, &name, NULL);
+	if(record == NULL) {
+		printf("No such file or directory\n");
+		return;
+	}
+
+	if(record->recordType != kHFSPlusFolderRecord) {
+		printf("Not a directory\n");
+		return;
+	}
+
+	nodeId = ((HFSPlusCatalogFolder*)record)->folderID;
+	volume->volumeHeader->finderInfo[2] = nodeId;
+	FLIPENDIAN(volume->volumeHeader->finderInfo[2]);
+
+	updateVolume(volume);
+}
+
+void swapforks_hfs(Volume* volume, const char* path)
+{
+	HFSPlusCatalogRecord* record;
+	HFSPlusCatalogFile* fileRecord;
+	HFSPlusForkData tmp;
+	char* name;
+
+	record = getRecordFromPath(path, volume, &name, NULL);
+	if(record == NULL) {
+		printf("No such file or directory\n");
+		return;
+	}
+
+	if(record->recordType != kHFSPlusFileRecord) {
+		printf("Not a file\n");
+		return;
+	}
+
+	fileRecord = (HFSPlusCatalogFile*)record;
+	tmp = fileRecord->resourceFork;
+	fileRecord->resourceFork = fileRecord->dataFork;
+	fileRecord->dataFork = tmp;
+
+	updateCatalog(volume, record);
+}
+
 int copyAcrossVolumes(Volume* volume1, Volume* volume2, char* path1, char* path2) {
 	void* buffer;
 	size_t bufferSize;
