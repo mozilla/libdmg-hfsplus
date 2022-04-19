@@ -36,10 +36,8 @@ BTHeaderRec* readBTHeaderRec(io_func* io) {
  
   headerRec = (BTHeaderRec*) malloc(sizeof(BTHeaderRec));
   
-  if(!READ(io, sizeof(BTNodeDescriptor), sizeof(BTHeaderRec), headerRec)) {
-    free(headerRec);
+  if(!READ(io, sizeof(BTNodeDescriptor), sizeof(BTHeaderRec), headerRec))
     return NULL;
-  }
     
   FLIPENDIAN(headerRec->treeDepth);
   FLIPENDIAN(headerRec->rootNode);
@@ -241,23 +239,11 @@ static void* searchNode(BTree* tree, uint32_t root, BTKey* searchKey, int *exact
       
     free(descriptor);
     return READ_DATA(tree, lastRecordDataOffset, tree->io);
-  } else if(descriptor->kind == kBTIndexNode) {
+  } else {
   
     free(descriptor);
     return searchNode(tree, getNodeNumberFromPointerRecord(lastRecordDataOffset, tree->io), searchKey, exact, nodeNumber, recordNumber);
-  } else {
-    if(nodeNumber != NULL)
-      *nodeNumber = root;
-      
-    if(recordNumber != NULL)
-      *recordNumber = i;
-    
-    if(exact != NULL)
-      *exact = FALSE;
-
-    free(descriptor);
-    return NULL;
-  }
+  }      
 }
 
 void* search(BTree* tree, BTKey* searchKey, int *exact, uint32_t *nodeNumber, int *recordNumber) {
@@ -480,7 +466,6 @@ static uint32_t traverseNode(uint32_t nodeNum, BTree* tree, unsigned char* map, 
         printf("\n"); fflush(stdout);
       }
       free(previousKey);
-      previousKey = NULL;
     }
     
     if(displayTree) {
@@ -518,8 +503,6 @@ static uint32_t traverseNode(uint32_t nodeNum, BTree* tree, unsigned char* map, 
     lastrecordDataOffset = recordDataOffset;
   }
   
-  if(previousKey != NULL) free(previousKey);
-
   free(descriptor);
   
   return count;
@@ -646,10 +629,7 @@ int debugBTree(BTree* tree, int displayTree) {
   } else {
     printf("Performing tree traversal...\n"); fflush(stdout);
     traverseCount = traverseNode(tree->headerRec->rootNode, tree, map, 0, &retFirstKey, &retLastKey, heightTable, &errorCount, displayTree);
-
-    free(retFirstKey);
-    free(retLastKey);
-
+    
     printf("Performing linear traversal...\n"); fflush(stdout);
     linearCount = linearCheck(heightTable, map, tree, &errorCount);
   }
@@ -785,7 +765,6 @@ static int growBTree(BTree* tree) {
   
   if(byteNumber < (tree->headerRec->nodeSize - 256)) {
     ASSERT(writeBTHeaderRec(tree), "writeBTHeaderREc");
-    free(buffer);
     return TRUE;
   } else {
     byteNumber -= tree->headerRec->nodeSize - 256;
@@ -1313,9 +1292,7 @@ static int increaseHeight(BTree* tree, uint32_t newNode) {
 
   ASSERT(writeBTNodeDescriptor(&newDescriptor, tree->headerRec->rootNode, tree), "writeBTNodeDescriptor");
   ASSERT(writeBTHeaderRec(tree), "writeBTHeaderRec");
-
-  free(oldRootKey);
-  free(newNodeKey); 
+  
   return TRUE;
 }
 

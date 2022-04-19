@@ -174,9 +174,6 @@ static int rawFileRead(io_func* io,off_t location, size_t size, void *buffer) {
 	volume = rawFile->volume;
 	blockSize = volume->volumeHeader->blockSize;
 
-	if(!rawFile->extents)
-		return FALSE;
-
 	extent = rawFile->extents;
 	fileLoc = 0;
 

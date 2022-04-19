@@ -95,7 +95,7 @@ static char plstData[1032] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-const char* plistHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n";
+const char* plistHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n";
 const char* plistFooter = "</dict>\n</plist>\n";
 
 static void flipSizeResource(unsigned char* data, char out) {
@@ -103,23 +103,24 @@ static void flipSizeResource(unsigned char* data, char out) {
   
   size = (SizeResource*) data;
   
-  FLIPENDIANLE(size->version);
-  FLIPENDIANLE(size->isHFS);
-  FLIPENDIANLE(size->unknown2);
-  FLIPENDIANLE(size->unknown3);
-  FLIPENDIANLE(size->volumeModified);
-  FLIPENDIANLE(size->unknown4);
-  FLIPENDIANLE(size->volumeSignature);
-  FLIPENDIANLE(size->sizePresent);
+  FLIPENDIAN(size->version);
+  FLIPENDIAN(size->isHFS);
+  FLIPENDIAN(size->unknown2);
+  FLIPENDIAN(size->unknown3);
+  FLIPENDIAN(size->volumeModified);
+  FLIPENDIAN(size->unknown4);
+  FLIPENDIAN(size->volumeSignature);
+  FLIPENDIAN(size->sizePresent);
 }
 
 static void flipCSumResource(unsigned char* data, char out) {
   CSumResource* cSum;
+  
   cSum = (CSumResource*) data;
   
-  FLIPENDIANLE(cSum->version);
-  FLIPENDIANLE(cSum->type);
-  FLIPENDIANLE(cSum->checksum);
+  FLIPENDIAN(cSum->version);
+  FLIPENDIAN(cSum->type);
+  FLIPENDIAN(cSum->checksum);
 }
 
 
@@ -169,22 +170,17 @@ static void flipBLKX(unsigned char* data, char out) {
     FLIPENDIAN(blkx->blocksRunCount);
     for(i = 0; i < blkx->blocksRunCount; i++) {
       flipBLKXRun(&(blkx->runs[i]));
-    } 
-  }
-/*
-    printf("fUDIFBlocksSignature: 0x%x\n", blkx->fUDIFBlocksSignature);
+    }
+    
+    /*printf("fUDIFBlocksSignature: 0x%x\n", blkx->fUDIFBlocksSignature);
     printf("infoVersion: 0x%x\n", blkx->infoVersion);
     printf("firstSectorNumber: 0x%llx\n", blkx->firstSectorNumber);
     printf("sectorCount: 0x%llx\n", blkx->sectorCount);
     printf("dataStart: 0x%llx\n", blkx->dataStart);
     printf("decompressBufferRequested: 0x%x\n", blkx->decompressBufferRequested);
     printf("blocksDescriptor: 0x%x\n", blkx->blocksDescriptor);
-    printf("blocksRunCount: 0x%x\n", blkx->blocksRunCount);
-
-    for(i = 0; i < 0x20; i++)
-    {
-	    printf("checksum[%d]: %x\n", i, blkx->checksum.data[i]);
-    }*/
+    printf("blocksRunCount: 0x%x\n", blkx->blocksRunCount);*/
+  }
 }
 
 static char* getXMLString(char** location) {
@@ -425,7 +421,7 @@ static void writeNSizResource(NSizResource* data, char* buffer) {
   sprintf(itemBuffer, "\t<key>version</key>\n\t<integer>%d</integer>\n", (int32_t)(data->version));
   strcat(buffer, itemBuffer);
   if(data->isVolume) {
-    sprintf(itemBuffer, "\t<key>volume-signature</key>\n\t<integer>%d</integer>\n", (int32_t)(data->volumeSignature));
+    sprintf(itemBuffer, "\t<key>bytes</key>\n\t<integer>%d</integer>\n", (int32_t)(data->volumeSignature));
     strcat(buffer, itemBuffer);
   }
   strcat(buffer, plistFooter);
@@ -534,25 +530,8 @@ void releaseNSiz(NSizResource* nSiz) {
   }
 }
 
-void outResources(AbstractFile* file, AbstractFile* out)
+ResourceKey* readResources(char* xml, size_t length) 
 {
-	char* xml;
-	UDIFResourceFile resourceFile;
-	off_t fileLength;
-
-	fileLength = file->getLength(file);
-	file->seek(file, fileLength - sizeof(UDIFResourceFile));
-	readUDIFResourceFile(file, &resourceFile);
-	xml = (char*) malloc((size_t)resourceFile.fUDIFXMLLength);
-	file->seek(file, (off_t)(resourceFile.fUDIFXMLOffset));
-	ASSERT(file->read(file, xml, (size_t)resourceFile.fUDIFXMLLength) == (size_t)resourceFile.fUDIFXMLLength, "fread");
-	ASSERT(out->write(out, xml, (size_t)resourceFile.fUDIFXMLLength) == (size_t)resourceFile.fUDIFXMLLength, "fwrite");
-
-	file->close(file);
-	out->close(out);
-}
-
-ResourceKey* readResources(char* xml, size_t length) {
   char* curLoc;
   char* tagEnd;
   size_t strLen;
@@ -646,7 +625,7 @@ ResourceKey* readResources(char* xml, size_t length) {
   return toReturn;
 }
 
-static void writeResourceData(AbstractFile* file, ResourceData* data, ResourceKey* curResource, FlipDataFunc flipData, int tabLength) {
+static void writeResourceData(AbstractFile* file, ResourceData* data, FlipDataFunc flipData, int tabLength) {
   unsigned char* dataBuf;
   char* tabs;
   int i;
@@ -659,10 +638,6 @@ static void writeResourceData(AbstractFile* file, ResourceData* data, ResourceKe
   
   abstractFilePrint(file, "%s<dict>\n", tabs);
   abstractFilePrint(file, "%s\t<key>Attributes</key>\n%s\t<string>0x%04x</string>\n", tabs, tabs, data->attributes);
-
-  if(strcmp((char*) curResource->key, "blkx") == 0)
-    abstractFilePrint(file, "%s\t<key>CFName</key>\n%s\t<string>%s</string>\n", tabs, tabs, data->name);
-
   abstractFilePrint(file, "%s\t<key>Data</key>\n%s\t<data>\n", tabs, tabs);
   
   if(flipData) {
@@ -695,8 +670,8 @@ void writeResources(AbstractFile* file, ResourceKey* resources) {
     abstractFilePrint(file, "\t\t<key>%s</key>\n\t\t<array>\n", curResource->key);
     curData = curResource->data;
     while(curData != NULL) {
-	    writeResourceData(file, curData, curResource, curResource->flipData, 3);
-	    curData = curData->next;
+      writeResourceData(file, curData, curResource->flipData, 3);
+      curData = curData->next;
     }
     abstractFilePrint(file, "\t\t</array>\n", curResource->key);
     curResource = curResource->next;
@@ -863,7 +838,6 @@ ResourceKey* makeSize(HFSPlusVolumeHeader* volumeHeader) {
   memset(&size, 0, sizeof(SizeResource));
   size.version = 5;
   size.isHFS = 1;
-  size.unknown1 = 0;
   size.unknown2 = 0;
   size.unknown3 = 0;
   size.volumeModified = volumeHeader->modifyDate;
@@ -872,6 +846,6 @@ ResourceKey* makeSize(HFSPlusVolumeHeader* volumeHeader) {
   size.sizePresent = 1;
 
   printf("making size data\n");  
-  return insertData(NULL, "size", 2, "", (const char*)(&size), sizeof(SizeResource), 0); 
+  return insertData(NULL, "size", 0, "", (const char*)(&size), sizeof(SizeResource), 0); 
 }
 

@@ -3,24 +3,13 @@
 #include <dirent.h>
 #include <time.h>
 #include <sys/types.h>
+#include <hfs/hfsplus.h>
+#include "abstractfile.h"
 #include <hfs/hfslib.h>
-#include <hfs/hfscompress.h>
 #include <sys/stat.h>
 #include <inttypes.h>
-#ifdef WIN32
-#include <sys/utime.h>
-#define lstat stat
-#else
-#include <utime.h>
-#endif
 
 #define BUFSIZE 1024*1024
-
-static int silence = 0;
-
-void hfs_setsilence(int s) {
-	silence = s;
-}
 
 void writeToFile(HFSPlusCatalogFile* file, AbstractFile* output, Volume* volume) {
 	unsigned char* buffer;
@@ -30,27 +19,16 @@ void writeToFile(HFSPlusCatalogFile* file, AbstractFile* output, Volume* volume)
 	
 	buffer = (unsigned char*) malloc(BUFSIZE);
 
-	if(file->permissions.ownerFlags & UF_COMPRESSED) {
-		io = openHFSPlusCompressed(volume, file);
-		if(io == NULL) {
-			hfs_panic("error opening file");
-			free(buffer);
-			return;
-		}
-
-		curPosition = 0;
-		bytesLeft = ((HFSPlusCompressed*) io->data)->decmpfs->size;
-	} else {
-		io = openRawFile(file->fileID, &file->dataFork, (HFSPlusCatalogRecord*)file, volume);
-		if(io == NULL) {
-			hfs_panic("error opening file");
-			free(buffer);
-			return;
-		}
-
-		curPosition = 0;
-		bytesLeft = file->dataFork.logicalSize;
-	}	
+	io = openRawFile(file->fileID, &file->dataFork, (HFSPlusCatalogRecord*)file, volume);
+	if(io == NULL) {
+		hfs_panic("error opening file");
+		free(buffer);
+		return;
+	}
+	
+	curPosition = 0;
+	bytesLeft = file->dataFork.logicalSize;
+	
 	while(bytesLeft > 0) {
 		if(bytesLeft > BUFSIZE) {
 			if(!READ(io, curPosition, BUFSIZE, buffer)) {
@@ -87,24 +65,16 @@ void writeToHFSFile(HFSPlusCatalogFile* file, AbstractFile* input, Volume* volum
 	
 	bytesLeft = input->getLength(input);
 
-	if(file->permissions.ownerFlags & UF_COMPRESSED) {
-		io = openHFSPlusCompressed(volume, file);
-		if(io == NULL) {
-			hfs_panic("error opening file");
-			free(buffer);
-			return;
-		}
-	} else {
-		io = openRawFile(file->fileID, &file->dataFork, (HFSPlusCatalogRecord*)file, volume);
-		if(io == NULL) {
-			hfs_panic("error opening file");
-			free(buffer);
-			return;
-		}
-		allocate((RawFile*)io->data, bytesLeft);
+	io = openRawFile(file->fileID, &file->dataFork, (HFSPlusCatalogRecord*)file, volume);
+	if(io == NULL) {
+		hfs_panic("error opening file");
+		free(buffer);
+		return;
 	}
 	
-	curPosition = 0;	
+	curPosition = 0;
+	
+	allocate((RawFile*)io->data, bytesLeft);
 	
 	while(bytesLeft > 0) {
 		if(bytesLeft > BUFSIZE) {
@@ -427,7 +397,6 @@ static void extractOne(HFSCatalogNodeID folderID, char* name, HFSPlusCatalogReco
 #ifdef WIN32
 	HFSPlusCatalogRecord* targetRecord;
 #endif
-	struct utimbuf times;        
 	
 	if(strncmp(name, ".HFS+ Private Directory Data", sizeof(".HFS+ Private Directory Data") - 1) == 0 || name[0] == '\0') {
 		return;
@@ -444,9 +413,6 @@ static void extractOne(HFSCatalogNodeID folderID, char* name, HFSPlusCatalogReco
 		// TODO: chown . now that contents are extracted
 		ASSERT(chdir(cwd) == 0, "chdir");
 		chmod(name, folder->permissions.fileMode & 07777);
-		times.actime = APPLE_TO_UNIX_TIME(folder->accessDate);
-		times.modtime = APPLE_TO_UNIX_TIME(folder->contentModDate);
-		utime(name, &times);
 	} else if(record->recordType == kHFSPlusFileRecord) {
 		file = (HFSPlusCatalogFile*)record;
 		fileType = file->permissions.fileMode & S_IFMT;
@@ -489,9 +455,6 @@ static void extractOne(HFSCatalogNodeID folderID, char* name, HFSPlusCatalogReco
 #ifdef WIN32
 				chmod(name, file->permissions.fileMode & 07777);
 #endif
-				times.actime = APPLE_TO_UNIX_TIME(file->accessDate);
-				times.modtime = APPLE_TO_UNIX_TIME(file->contentModDate);
-				utime(name, &times);
 			} else {
 				printf("WARNING: cannot fopen %s\n", name);
 			}
@@ -570,25 +533,12 @@ int copyAcrossVolumes(Volume* volume1, Volume* volume2, char* path1, char* path2
 	bufferSize = 0;
 	tmpFile = createAbstractFileFromMemoryFile((void**)&buffer, &bufferSize);
 	
-	if(!silence)
-	{
-		printf("retrieving... "); fflush(stdout);
-	}
-
+	printf("retrieving... "); fflush(stdout);
 	get_hfs(volume1, path1, tmpFile);
 	tmpFile->seek(tmpFile, 0);
-
-	if(!silence)
-	{
-		printf("writing (%ld)... ", (long) tmpFile->getLength(tmpFile)); fflush(stdout);
-	}
-
+	printf("writing (%ld)... ", (long) tmpFile->getLength(tmpFile)); fflush(stdout);
 	ret = add_hfs(volume2, tmpFile, path2);
-
-	if(!silence)
-	{
-		printf("done\n");
-	}
+	printf("done\n");
 	
 	free(buffer);
 	
@@ -602,8 +552,6 @@ void displayFolder(HFSCatalogNodeID folderID, Volume* volume) {
 	HFSPlusCatalogFile* file;
 	time_t fileTime;
 	struct tm *date;
-	HFSPlusDecmpfs* compressData;
-	size_t attrSize;
 	
 	theList = list = getFolderContents(folderID, volume);
 	
@@ -620,22 +568,15 @@ void displayFolder(HFSCatalogNodeID folderID, Volume* volume) {
 			printf("%06o ", file->permissions.fileMode);
 			printf("%3d ", file->permissions.ownerID);
 			printf("%3d ", file->permissions.groupID);
-			if(file->permissions.ownerFlags & UF_COMPRESSED) {
-				attrSize = getAttribute(volume, file->fileID, "com.apple.decmpfs", (uint8_t**)(&compressData));
-				flipHFSPlusDecmpfs(compressData);
-				printf("%12" PRId64 " ", compressData->size);
-				free(compressData);
-			} else {
-				printf("%12" PRId64 " ", file->dataFork.logicalSize);
-			}
+			printf("%12" PRId64 " ", file->dataFork.logicalSize);
 			fileTime = APPLE_TO_UNIX_TIME(file->contentModDate);
 		}
 			
 		date = localtime(&fileTime);
 		if(date != NULL) {
-			printf("%2d/%2d/%4d %02d:%02d ", date->tm_mon, date->tm_mday, date->tm_year + 1900, date->tm_hour, date->tm_min);
+      printf("%2d/%2d/%4d %02d:%02d ", date->tm_mon, date->tm_mday, date->tm_year + 1900, date->tm_hour, date->tm_min);
 		} else {
-			printf("                 ");
+      printf("                 ");
 		}
 
 		printUnicode(&list->name);
@@ -647,24 +588,14 @@ void displayFolder(HFSCatalogNodeID folderID, Volume* volume) {
 	releaseCatalogRecordList(theList);
 }
 
-void displayFileLSLine(Volume* volume, HFSPlusCatalogFile* file, const char* name) {
+void displayFileLSLine(HFSPlusCatalogFile* file, const char* name) {
 	time_t fileTime;
 	struct tm *date;
-	HFSPlusDecmpfs* compressData;
 	
 	printf("%06o ", file->permissions.fileMode);
 	printf("%3d ", file->permissions.ownerID);
 	printf("%3d ", file->permissions.groupID);
-
-	if(file->permissions.ownerFlags & UF_COMPRESSED) {
-		getAttribute(volume, file->fileID, "com.apple.decmpfs", (uint8_t**)(&compressData));
-		flipHFSPlusDecmpfs(compressData);
-		printf("%12" PRId64 " ", compressData->size);
-		free(compressData);
-	} else {
-		printf("%12" PRId64 " ", file->dataFork.logicalSize);
-	}
-
+	printf("%12" PRId64 " ", file->dataFork.logicalSize);
 	fileTime = APPLE_TO_UNIX_TIME(file->contentModDate);
 	date = localtime(&fileTime);
 	if(date != NULL) {
@@ -673,19 +604,6 @@ void displayFileLSLine(Volume* volume, HFSPlusCatalogFile* file, const char* nam
 		printf("                 ");
 	}
 	printf("%s\n", name);
-
-	XAttrList* next;
-	XAttrList* attrs = getAllExtendedAttributes(file->fileID, volume);
-	if(attrs != NULL) {
-		printf("Extended attributes\n");
-		while(attrs != NULL) {
-			next = attrs->next;
-			printf("\t%s\n", attrs->name);
-			free(attrs->name);
-			free(attrs);
-			attrs = next;
-		}	
-	}	
 }
 
 void hfs_ls(Volume* volume, const char* path) {
@@ -699,7 +617,7 @@ void hfs_ls(Volume* volume, const char* path) {
 		if(record->recordType == kHFSPlusFolderRecord)
 			displayFolder(((HFSPlusCatalogFolder*)record)->folderID, volume);  
 		else
-			displayFileLSLine(volume, (HFSPlusCatalogFile*)record, name);
+			displayFileLSLine((HFSPlusCatalogFile*)record, name);
 	} else {
 		printf("No such file or directory\n");
 	}
@@ -750,8 +668,7 @@ void hfs_untar(Volume* volume, AbstractFile* tarFile) {
 		HFSPlusCatalogRecord* record = getRecordFromPath3(fileName, volume, NULL, NULL, TRUE, FALSE, kHFSRootFolderID);
 		if(record) {
 			if(record->recordType == kHFSPlusFolderRecord || type == 5) {
-				if(!silence)
-					printf("ignoring %s, type = %d\n", fileName, type);
+				printf("ignoring %s, type = %d\n", fileName, type);
 				free(record);
 				goto loop;
 			} else {
@@ -762,8 +679,7 @@ void hfs_untar(Volume* volume, AbstractFile* tarFile) {
 		}
 
 		if(type == 0) {
-			if(!silence)
-				printf("file: %s (%04o), size = %d\n", fileName, mode, size);
+			printf("file: %s (%04o), size = %d\n", fileName, mode, size);
 			void* buffer = malloc(size);
 			tarFile->seek(tarFile, curRecord + 512);
 			tarFile->read(tarFile, buffer, size);
@@ -771,12 +687,10 @@ void hfs_untar(Volume* volume, AbstractFile* tarFile) {
 			add_hfs(volume, inFile, fileName);
 			free(buffer);
 		} else if(type == 5) {
-			if(!silence)
-				printf("directory: %s (%04o)\n", fileName, mode);
+			printf("directory: %s (%04o)\n", fileName, mode);
 			newFolder(fileName, volume);
 		} else if(type == 2) {
-			if(!silence)
-				printf("symlink: %s (%04o) -> %s\n", fileName, mode, target);
+			printf("symlink: %s (%04o) -> %s\n", fileName, mode, target);
 			makeSymlink(fileName, target, volume);
 		}
 

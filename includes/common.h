@@ -8,7 +8,6 @@
 #include <sys/types.h>
 
 #ifdef WIN32
-#include <unistd.h>
 #define fseeko fseeko64
 #define ftello ftello64
 #define off_t off64_t
@@ -99,11 +98,5 @@ typedef struct io_func_struct {
 	writeFunc write;
 	closeFunc close;
 } io_func;
-
-struct AbstractFile;
-
-unsigned char* decodeBase64(char* toDecode, size_t* dataLength);
-void writeBase64(struct AbstractFile* file, unsigned char* data, size_t dataLength, int tabLength, int width);
-char* convertBase64(unsigned char* data, size_t dataLength, int tabLength, int width);
 
 #endif

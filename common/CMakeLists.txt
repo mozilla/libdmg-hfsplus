@@ -1,2 +1,2 @@
-add_library(common abstractfile.c base64.c ../includes/abstractfile.h ../includes/common.h)
+add_library(common abstractfile.c ../includes/abstractfile.h ../includes/common.h)
 
