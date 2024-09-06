@@ -1,0 +1,36 @@
+name: run cram tests
+
+on:
+  push:
+    branches: ["bhearsum-dev"]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14]
+        pattern: ["test/*.t", "test/reference/*.t"]
+        include:
+          - os: ubuntu-22.04
+            pattern: "test/*.t"
+          - os: macos-14
+            pattern: "test/reference/*.t"
+        exclude:
+          - os: ubuntu-22.04
+            pattern: "test/reference/*.t"
+          - os: macos-14
+            pattern: "test/*.t"
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: configure
+      run: cmake -B build
+    - name: build
+      run: make -C build -j4
+    # TODO: reference tests run on mac; other tests run on Linux
+    - name: test
+      run: |
+        pip install cram
+        cram ${{ matrix.pattern }}
