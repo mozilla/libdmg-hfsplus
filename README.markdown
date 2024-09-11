@@ -51,7 +51,7 @@ dmgs. It is separate from the HFS+ utility in order that the hfs directory
 does not have dependencies on the dmg directory.
 
 The makefile in the root folder will make all utilities.
-	
+
 	mkdir build && cd build
 	cmake ..
 	make # Or only make hfs / make dmg / ...
@@ -73,3 +73,10 @@ The makefile in the root folder will make all utilities.
 ### hdutil
 	cd hdiutil
 	make
+
+TESTING
+-------
+
+* Configure in 'build': `cmake -B build`
+* Install cram: `pipx install cram`
+* Run tests: `cram test/*.t`

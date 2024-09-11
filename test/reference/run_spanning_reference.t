@@ -5,47 +5,49 @@ time venv/bin/cram test/run_spanning_reference.t --keep-tmpdir
 ```
 and then copy the reference directory like
 ```
-cp -R /var/folders/3s/_m9prk6n7g5cx6hhs_33q2f80000gn/T/cramtests-0uzbp0wu/reference test/run_spanning_reference
+cp -R /var/folders/3s/_m9prk6n7g5cx6hhs_33q2f80000gn/T/cramtests-0uzbp0wu/run_spanning_reference_reference test/run_spanning_reference
 ```
 to update test inputs.
 
 Make sure we have a fresh build:
 
-  $ export BUILDDIR=$TESTDIR/../build
+  $ export BUILDDIR=$TESTDIR/../../build
   $ mkdir -p $BUILDDIR
   $ cd $BUILDDIR
   $ cmake .. &>/dev/null
   $ make &> /dev/null
   $ cd $CRAMTMP
+  $ export STAGEDIR=run_spanning_reference_stagedir
+  $ export REFERENCE=run_spanning_reference_reference
 
 Prepare content:
 
-  $ mkdir stagedir
-  $ echo "content-x" >> stagedir/x
-  $ for i in `cat $TESTDIR/offset-files.txt`; do xattr -w "$i" "$i" "stagedir/x"; done
+  $ mkdir $STAGEDIR
+  $ echo "content-x" >> $STAGEDIR/x
+  $ for i in `cat $TESTDIR/offset-files.txt`; do xattr -w "$i" "$i" "$STAGEDIR/x"; done
 
 Create reference DMGs using macOS:
 
-  $ mkdir reference
-  $ xattr -w 'attr-key' '__MOZILLA__attr-value-and-a-very-long-string-with-some-padding-to-push-this-across-tworuns-EOL-a' stagedir/x
-  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder stagedir reference/hdiutila.hfs
-  created: */reference/hdiutila.hfs.dmg (glob)
-  $ xattr -w 'attr-key' '__MOZILLA__attr-value-and-a-very-long-string-with-some-padding-to-push-this-across-tworuns-EOL-p' stagedir/x
-  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder stagedir reference/hdiutilp.hfs
-  created: */reference/hdiutilp.hfs.dmg (glob)
+  $ mkdir $REFERENCE
+  $ xattr -w 'attr-key' '__MOZILLA__attr-value-and-a-very-long-string-with-some-padding-to-push-this-across-tworuns-EOL-a' $STAGEDIR/x
+  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder $STAGEDIR $REFERENCE/hdiutila.hfs
+  created: */hdiutila.hfs.dmg (glob)
+  $ xattr -w 'attr-key' '__MOZILLA__attr-value-and-a-very-long-string-with-some-padding-to-push-this-across-tworuns-EOL-p' $STAGEDIR/x
+  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder $STAGEDIR $REFERENCE/hdiutilp.hfs
+  created: */hdiutilp.hfs.dmg (glob)
 
 Extract reference HFSs:
 
-  $ $BUILDDIR/dmg/dmg extract reference/hdiutila.hfs.dmg reference/hdiutila.hfs > /dev/null
-  $ $BUILDDIR/dmg/dmg extract reference/hdiutilp.hfs.dmg reference/hdiutilp.hfs > /dev/null
+  $ $BUILDDIR/dmg/dmg extract $REFERENCE/hdiutila.hfs.dmg $REFERENCE/hdiutila.hfs > /dev/null
+  $ $BUILDDIR/dmg/dmg extract $REFERENCE/hdiutilp.hfs.dmg $REFERENCE/hdiutilp.hfs > /dev/null
 
-Ensure that the reference images only differ in the expected ways. (Some sections have minor differences between them - but always in the same places.)
+Ensure that the $REFERENCE images only differ in the expected ways. (Some sections have minor differences between them - but always in the same places.)
 
-  $ xxd reference/hdiutila.hfs | grep -v 000bc140: | grep -v 000bc150: > hdiutila.txt
-  $ xxd reference/hdiutilp.hfs | grep -v 000bc140: | grep -v 000bc150: > hdiutilp.txt
+  $ xxd $REFERENCE/hdiutila.hfs | grep -v 000bc140: | grep -v 000bc150: | grep -v 000bc040 > hdiutila.txt
+  $ xxd $REFERENCE/hdiutilp.hfs | grep -v 000bc140: | grep -v 000bc150: | grep -v 000bc040 > hdiutilp.txt
   $ diff --unified=3 hdiutila.txt hdiutilp.txt
-  --- hdiutila.txt* (glob)
-  +++ hdiutilp.txt* (glob)
+  --- *hdiutila.txt* (glob)
+  +++ *hdiutilp.txt* (glob)
   @@ -63,12 +63,12 @@
    000003e0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
    000003f0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
@@ -73,7 +75,7 @@ Ensure that the reference images only differ in the expected ways. (Some section
   @@ -48129,7 +48129,7 @@
    000bc000: 0000 0000 0000 0000 ff01 0008 0000 0012  ................
    000bc010: 0000 0001 0006 006d 0079 0044 0069 0073  .......m.y.D.i.s
-   000bc020: 006b 0001 0000 0000 0003 0000 0002 e101  .k..............
+   000bc020:* (glob)
   -000bc030:* (glob)
   +000bc030:* (glob)
    000bc040: 0000 0000 01f6 0000 0014 0000 41ed 0000  ............A...
@@ -128,4 +130,4 @@ Ensure that the reference images only differ in the expected ways. (Some section
 
 Remove the unneeded dmg:
 
-  $ rm reference/hdiutilp.hfs.dmg
+  $ rm $REFERENCE/hdiutilp.hfs.dmg

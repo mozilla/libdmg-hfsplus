@@ -4,12 +4,14 @@ Make sure we have a fresh build:
   $ cd $BUILDDIR
   $ make 2> /dev/null >/dev/null
   $ cd $CRAMTMP
+  $ export STAGEDIR=hfs_xattrs_stagedir
+  $ export OUTPUT=hfs_xattrs_output
 
 Prepare content:
 
-  $ mkdir stagedir
-  $ echo "content-a" >> stagedir/a
-  $ echo "content-b" >> stagedir/b
+  $ mkdir $STAGEDIR
+  $ echo "content-a" >> $STAGEDIR/a
+  $ echo "content-b" >> $STAGEDIR/b
 
 Extract reference HFSs and attributes. We parse the debugattrs a bit because the attribute numbers from hdiutil and hfsplus may not match:
 
@@ -23,26 +25,26 @@ Extract reference HFSs and attributes. We parse the debugattrs a bit because the
 
 Generate comparison HFSs:
 
-  $ mkdir output
-  $ cp $TESTDIR/empty.hfs output/stageda.hfs
-  $ $BUILDDIR/hfs/hfsplus output/stageda.hfs add stagedir/a a
-  $ $BUILDDIR/hfs/hfsplus output/stageda.hfs add stagedir/b b
-  $ $BUILDDIR/hfs/hfsplus output/stageda.hfs setattr a 'attr-key-a' '__MOZILLA__attr-value-a__MOZILLA__'
-  $ $BUILDDIR/hfs/hfsplus output/stageda.hfs debugattrs verbose | grep attribute | sed -e 's/[0-9].*:/:/' > output/stageda.attrs
-  $ cp $TESTDIR/empty.hfs output/stagedab.hfs
-  $ $BUILDDIR/hfs/hfsplus output/stagedab.hfs add stagedir/a a
-  $ $BUILDDIR/hfs/hfsplus output/stagedab.hfs add stagedir/b b
-  $ $BUILDDIR/hfs/hfsplus output/stagedab.hfs setattr a 'attr-key-a' '__MOZILLA__attr-value-a__MOZILLA__'
-  $ $BUILDDIR/hfs/hfsplus output/stagedab.hfs setattr b 'attr-key-b' '__MOZILLA__attr-value-b__MOZILLA__'
-  $ $BUILDDIR/hfs/hfsplus output/stagedab.hfs debugattrs verbose | grep attribute | sed -e 's/[0-9].*:/:/' > output/stagedab.attrs
-  $ cp $TESTDIR/empty.hfs output/stagedb.hfs
-  $ $BUILDDIR/hfs/hfsplus output/stagedb.hfs add stagedir/a a
-  $ $BUILDDIR/hfs/hfsplus output/stagedb.hfs add stagedir/b b
-  $ $BUILDDIR/hfs/hfsplus output/stagedb.hfs setattr b 'attr-key-b' '__MOZILLA__attr-value-b__MOZILLA__'
-  $ $BUILDDIR/hfs/hfsplus output/stagedb.hfs debugattrs verbose | grep attribute | sed -e 's/[0-9].*:/:/' > output/stagedb.attrs
+  $ mkdir $OUTPUT
+  $ cp $TESTDIR/empty.hfs $OUTPUT/stageda.hfs
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stageda.hfs add $STAGEDIR/a a
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stageda.hfs add $STAGEDIR/b b
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stageda.hfs setattr a 'attr-key-a' '__MOZILLA__attr-value-a__MOZILLA__'
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stageda.hfs debugattrs verbose | grep attribute | sed -e 's/[0-9].*:/:/' > $OUTPUT/stageda.attrs
+  $ cp $TESTDIR/empty.hfs $OUTPUT/stagedab.hfs
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stagedab.hfs add $STAGEDIR/a a
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stagedab.hfs add $STAGEDIR/b b
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stagedab.hfs setattr a 'attr-key-a' '__MOZILLA__attr-value-a__MOZILLA__'
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stagedab.hfs setattr b 'attr-key-b' '__MOZILLA__attr-value-b__MOZILLA__'
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stagedab.hfs debugattrs verbose | grep attribute | sed -e 's/[0-9].*:/:/' > $OUTPUT/stagedab.attrs
+  $ cp $TESTDIR/empty.hfs $OUTPUT/stagedb.hfs
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stagedb.hfs add $STAGEDIR/a a
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stagedb.hfs add $STAGEDIR/b b
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stagedb.hfs setattr b 'attr-key-b' '__MOZILLA__attr-value-b__MOZILLA__'
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/stagedb.hfs debugattrs verbose | grep attribute | sed -e 's/[0-9].*:/:/' > $OUTPUT/stagedb.attrs
 
 Compare attributes in the reference images and generated images:
 
-  $ diff --unified=3 hfs_xattrs_reference/hdiutila.attrs output/stageda.attrs
-  $ diff --unified=3 hfs_xattrs_reference/hdiutilb.attrs output/stagedb.attrs
-  $ diff --unified=3 hfs_xattrs_reference/hdiutilab.attrs output/stagedab.attrs
+  $ diff --unified=3 hfs_xattrs_reference/hdiutila.attrs $OUTPUT/stageda.attrs
+  $ diff --unified=3 hfs_xattrs_reference/hdiutilb.attrs $OUTPUT/stagedb.attrs
+  $ diff --unified=3 hfs_xattrs_reference/hdiutilab.attrs $OUTPUT/stagedab.attrs

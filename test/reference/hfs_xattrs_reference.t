@@ -1,21 +1,23 @@
 Prepare content:
 
   $ cd $CRAMTMP
-  $ mkdir stagedir
-  $ echo "content-a" >> stagedir/a
-  $ echo "content-b" >> stagedir/b
+  $ export STAGEDIR=hfs_xattrs_reference_stagedir
+  $ export REFERENCE=hfs_xattrs_reference_reference
+  $ mkdir $STAGEDIR
+  $ echo "content-a" >> $STAGEDIR/a
+  $ echo "content-b" >> $STAGEDIR/b
 
 Create reference DMGs using macOS:
 
-  $ mkdir reference
-  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder stagedir reference/hdiutil.hfs
-  created: */reference/hdiutil.hfs.dmg (glob)
-  $ xattr -w 'attr-key-a' '__MOZILLA__attr-value-a' stagedir/a
-  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder stagedir reference/hdiutila.hfs
-  created: */reference/hdiutila.hfs.dmg (glob)
-  $ xattr -w 'attr-key-b' '__MOZILLA__attr-value-b' stagedir/b
-  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder stagedir reference/hdiutilab.hfs
-  created: */reference/hdiutilab.hfs.dmg (glob)
-  $ xattr -c stagedir/a
-  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder stagedir reference/hdiutilb.hfs
-  created: */reference/hdiutilb.hfs.dmg (glob)
+  $ mkdir $REFERENCE
+  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder $STAGEDIR $REFERENCE/hdiutil.hfs
+  created: */hdiutil.hfs.dmg (glob)
+  $ xattr -w 'attr-key-a' '__MOZILLA__attr-value-a' $STAGEDIR/a
+  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder $STAGEDIR $REFERENCE/hdiutila.hfs
+  created: */hdiutila.hfs.dmg (glob)
+  $ xattr -w 'attr-key-b' '__MOZILLA__attr-value-b' $STAGEDIR/b
+  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder $STAGEDIR $REFERENCE/hdiutilab.hfs
+  created: */hdiutilab.hfs.dmg (glob)
+  $ xattr -c $STAGEDIR/a
+  $ hdiutil create -megabytes 5 -fs HFS+ -volname myDisk -srcfolder $STAGEDIR $REFERENCE/hdiutilb.hfs
+  created: */hdiutilb.hfs.dmg (glob)

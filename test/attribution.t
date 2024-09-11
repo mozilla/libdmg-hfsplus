@@ -4,18 +4,20 @@ Make sure we have a fresh build:
   $ cd $BUILDDIR
   $ make 2> /dev/null >/dev/null
   $ cd $CRAMTMP
+  $ export OUTPUT=attribution_output
+  $ mkdir $OUTPUT
 
-  $ $BUILDDIR/dmg/dmg build $TESTDIR/attribution_reference/hdiutila.hfs testa.dmg __MOZILLA__attr-value- >/dev/null
+  $ $BUILDDIR/dmg/dmg build $TESTDIR/attribution_reference/hdiutila.hfs $OUTPUT/testa.dmg __MOZILLA__attr-value- >/dev/null
 
 Note the "attr-value-p" suffix below!
 
-  $ $BUILDDIR/dmg/dmg build $TESTDIR/attribution_reference/hdiutilp.hfs testb.dmg __MOZILLA__attr-value- >/dev/null
+  $ $BUILDDIR/dmg/dmg build $TESTDIR/attribution_reference/hdiutilp.hfs $OUTPUT/testb.dmg __MOZILLA__attr-value- >/dev/null
 
-  $ xxd testa.dmg > testa.txt
-  $ xxd testb.dmg > testb.txt
-  $ diff --unified=3 testa.txt testb.txt
-  --- testa.txt* (glob)
-  +++ testb.txt* (glob)
+  $ xxd $OUTPUT/testa.dmg > $OUTPUT/testa.txt
+  $ xxd $OUTPUT/testb.dmg > $OUTPUT/testb.txt
+  $ diff --unified=3 $OUTPUT/testa.txt $OUTPUT/testb.txt
+  --- *testa.txt* (glob)
+  +++ *testb.txt* (glob)
   @@ -3349,7 +3349,7 @@
    0000d140: 7400 7200 2d00 6b00 6500 7900 0000 1000  t.r.-.k.e.y.....
    0000d150: 0000 0000 0000 0000 0000 175f 5f4d 4f5a  ...........__MOZ
@@ -102,7 +104,7 @@ Note the "attr-value-p" suffix below!
 
 Check resources:
 
-  $ $BUILDDIR/dmg/dmg res testa.dmg - | expand -t 4
+  $ $BUILDDIR/dmg/dmg res $OUTPUT/testa.dmg - | expand -t 4
   <?xml version="1.0" encoding="UTF-8"?>
   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
   <plist version="1.0">
@@ -437,20 +439,20 @@ Check resources:
 
 Line in the sand:
 
-  $ shasum testa.dmg testb.dmg
-  85f7e85acef53b63fc199e84ff801ae96b3e8c83  testa.dmg
-  ef6e91b330f5eacd10eb5e37603b8baa06d4a1a4  testb.dmg
+  $ shasum $OUTPUT/testa.dmg $OUTPUT/testb.dmg
+  85f7e85acef53b63fc199e84ff801ae96b3e8c83 *testa.dmg (glob)
+  ef6e91b330f5eacd10eb5e37603b8baa06d4a1a4 *testb.dmg (glob)
 
 Attribute:
 
-  $ $BUILDDIR/dmg/dmg attribute testa.dmg testa_updated.dmg __MOZILLA__attr-value- __MOZILLA__attr-value-p >/dev/null
+  $ $BUILDDIR/dmg/dmg attribute $OUTPUT/testa.dmg $OUTPUT/testa_updated.dmg __MOZILLA__attr-value- __MOZILLA__attr-value-p >/dev/null
 
 Unfortunately, attributing builds does not update the cSum block, so we expect some differences here:
 
-  $ xxd testa_updated.dmg > testa_updated.txt
-  $ diff --unified=3 testb.txt testa_updated.txt
-  --- testb.txt* (glob)
-  +++ testa_updated.txt* (glob)
+  $ xxd $OUTPUT/testa_updated.dmg > $OUTPUT/testa_updated.txt
+  $ diff --unified=3 $OUTPUT/testb.txt $OUTPUT/testa_updated.txt
+  --- *testb.txt* (glob)
+  +++ *testa_updated.txt* (glob)
   @@ -16831,7 +16831,7 @@
    00041be0: 3c2f 7374 7269 6e67 3e0a 0909 0909 3c6b  </string>.....<k
    00041bf0: 6579 3e44 6174 613c 2f6b 6579 3e0a 0909  ey>Data</key>...
@@ -483,19 +485,19 @@ Unfortunately, attributing builds does not update the cSum block, so we expect s
    00042440: 6b2b 596e 6c30 5a58 4d38 4c32 746c 6554  k+Ynl0ZXM8L2tleT
    00042450: 344b 4354 7870 626e 526c 5a32 5679 0a09  4KCTxpbnRlZ2Vy..
   [1]
-  $ shasum testb.dmg testa_updated.dmg
-  ef6e91b330f5eacd10eb5e37603b8baa06d4a1a4  testb.dmg
-  41fadf80df5625ac458a0c1c548f37afbc41b06e  testa_updated.dmg
+  $ shasum $OUTPUT/testb.dmg $OUTPUT/testa_updated.dmg
+  ef6e91b330f5eacd10eb5e37603b8baa06d4a1a4  *testb.dmg (glob)
+  41fadf80df5625ac458a0c1c548f37afbc41b06e  *testa_updated.dmg (glob)
 
 However, if we revert, the checksums should match again:
 We could also revert:
 
-  $ $BUILDDIR/dmg/dmg attribute testa_updated.dmg testa_reverted.dmg  __MOZILLA__attr-value- __MOZILLA__attr-value-a >/dev/null
+  $ $BUILDDIR/dmg/dmg attribute $OUTPUT/testa_updated.dmg $OUTPUT/testa_reverted.dmg  __MOZILLA__attr-value- __MOZILLA__attr-value-a >/dev/null
 
 Note -- same same:
 
-  $ xxd testa_reverted.dmg > testa_reverted.txt
-  $ diff --unified=3 testa.txt testa_reverted.txt
-  $ shasum testa.dmg testa_reverted.dmg
-  85f7e85acef53b63fc199e84ff801ae96b3e8c83  testa.dmg
-  85f7e85acef53b63fc199e84ff801ae96b3e8c83  testa_reverted.dmg
+  $ xxd $OUTPUT/testa_reverted.dmg > $OUTPUT/testa_reverted.txt
+  $ diff --unified=3 $OUTPUT/testa.txt $OUTPUT/testa_reverted.txt
+  $ shasum $OUTPUT/testa.dmg $OUTPUT/testa_reverted.dmg
+  85f7e85acef53b63fc199e84ff801ae96b3e8c83  *testa.dmg (glob)
+  85f7e85acef53b63fc199e84ff801ae96b3e8c83  *testa_reverted.dmg (glob)
