@@ -2,7 +2,7 @@ name: run cram tests
 
 on:
   push:
-    branches: ["mozilla"]
+    branches: ["mozilla", "reproducible-tests"]
   pull_request:
     branches: ["mozilla"]
 
