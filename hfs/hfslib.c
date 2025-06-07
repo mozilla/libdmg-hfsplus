@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <time.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <hfs/hfslib.h>
 #include <hfs/hfscompress.h>
@@ -294,9 +295,9 @@ void removeAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* pa
 void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* parentName) {
 	CatalogRecordList* nextEntry;
 	CatalogRecordList* theList;
-	char cwd[1024];
-	char fullName[1024];
-	char testBuffer[1024];
+	char cwd[MAXPATHLEN+1];
+	char fullName[MAXPATHLEN+1];
+	char testBuffer[MAXPATHLEN+1];
 	char* pathComponent;
 	int pathLen;
 	
@@ -312,10 +313,11 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 	AbstractFile* file;
 	HFSPlusCatalogFile* outFile;
 	
-	strcpy(fullName, parentName);
-	pathComponent = fullName + strlen(fullName);
+	pathComponent = stpncpy(fullName, parentName, MAXPATHLEN+1);
+	ASSERT(pathComponent < (fullName + MAXPATHLEN + 1),
+	       "addAllInFolder: parentName too long");
 	
-	ASSERT(getcwd(cwd, 1024) != NULL, "cannot get current working directory");
+	ASSERT(getcwd(cwd, MAXPATHLEN+1) != NULL, "cannot get current working directory");
 	
 	theList = nextEntry = getFolderContents(folderID, volume);
 	
