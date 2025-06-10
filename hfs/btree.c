@@ -197,7 +197,7 @@ static void* searchNode(BTree* tree, uint32_t root, BTKey* searchKey, int *exact
     recordDataOffset = recordOffset + key->keyLength + sizeof(key->keyLength);
     
     res = COMPARE(tree, key, searchKey);
-	free(key);
+    free(key);
     if(res == 0) {
       if(descriptor->kind == kBTLeafNode) {
         if(nodeNumber != NULL)
@@ -212,8 +212,7 @@ static void* searchNode(BTree* tree, uint32_t root, BTKey* searchKey, int *exact
         free(descriptor);
 
         return READ_DATA(tree, recordDataOffset, tree->io);
-      } else {
-      
+      } else {  
         free(descriptor);
         return searchNode(tree, getNodeNumberFromPointerRecord(recordDataOffset, tree->io), searchKey, exact, nodeNumber, recordNumber);
       }
