@@ -183,7 +183,7 @@ typedef struct Rect   Rect;
 typedef uint32_t        FourCharCode;
 typedef FourCharCode    OSType;
 
-#endif
+#endif  /* ifndef __MACTYPES__ */
 
 /* Finder flags (finderFlags, fdFlags and frFlags) */
 enum {
@@ -293,8 +293,8 @@ typedef struct ExtendedFolderInfo   ExtendedFolderInfo;
 #define S_IFLNK  0120000    /* symbolic link */
 #define S_IFSOCK 0140000    /* socket */
 #define S_IFWHT  0160000    /* whiteout */
-#endif
-#endif
+#endif  /* ifndef _SYS_STAT_H */
+#endif  /* ifndef _STAT_H_ */
 
 #define UF_COMPRESSED 040
 
@@ -439,7 +439,7 @@ enum {
 	kHFSPlusCreator   = 0x6866732B   /* 'hfs+' */
 };
 
-#endif
+#endif  /* ifndef __HFS_FORMAT__ */
 
 struct HFSPlusCatalogRecord {
 	int16_t recordType;
@@ -583,5 +583,5 @@ extern "C" {
 }
 #endif
 
-#endif
+#endif  /* ifndef HFSPLUS_H */
 
