@@ -312,13 +312,18 @@ struct HFSPlusBSDInfo {
 } __attribute__((__packed__));
 typedef struct HFSPlusBSDInfo HFSPlusBSDInfo;
 
+/* Identifiers for HFSPlusCatalogRecord types. Stored as `int16_t recordType`
+   inside HFSPlusCatalog-family types. */
 enum {
-	kHFSPlusFolderRecord        = 0x0001,
-	kHFSPlusFileRecord          = 0x0002,
-	kHFSPlusFolderThreadRecord  = 0x0003,
-	kHFSPlusFileThreadRecord    = 0x0004
+	kHFSPlusFolderRecord        = 0x0001,  /* HFSPlusCatalogFolder */
+	kHFSPlusFileRecord          = 0x0002,  /* HFSPlusCatalogFile */
+	kHFSPlusFolderThreadRecord  = 0x0003,  /* HFSPlusCatalogThread */
+	kHFSPlusFileThreadRecord    = 0x0004   /* HFSPlusCatalogThread */
 };
 
+/* Flags enum for HFSPlusCatalogFolder and HFSPlusCatalogFile types. The
+   location that would contain these flags is reserved in HFSPlusCatalogThread.
+	 Stored as `uint16_t flags` in the two types where it is specified. */
 enum {
 	kHFSFileLockedBit       = 0x0000,       /* file is locked and cannot be written to */
 	kHFSFileLockedMask      = 0x0001,
@@ -441,12 +446,19 @@ enum {
 
 #endif  /* ifndef __HFS_FORMAT__ */
 
+/* HFSPlusCatalogRecord contains a record for some item inside an HFSPlus file
+   system's catalog, of indefinite size. Use the recordType field to
+	determine how to interpret the record (generally by casting the pointer to
+	HFSPlusCatalogFolder, HFSPlusCatalogFile, or HFSPlusCatalogThread). **/
 struct HFSPlusCatalogRecord {
 	int16_t recordType;
 	unsigned char data[0];
 } __attribute__((__packed__));
 typedef struct HFSPlusCatalogRecord HFSPlusCatalogRecord;
 
+/* CatalogRecordList is a singly-linked list of HFSPlusCatalogRecord entries,
+   each associated with a name. To recursively free CatalogRecordList, use
+	 releaseCatalogRecordList(CatalogRecordList*). */
 struct CatalogRecordList {
 	HFSUniStr255 name;
 	HFSPlusCatalogRecord* record;
@@ -454,6 +466,10 @@ struct CatalogRecordList {
 };
 typedef struct CatalogRecordList CatalogRecordList;
 
+/* XAttrList is a singly-linked list of extended attribute names. Names are
+   null-terminated Unicode strings uniquely owned by the XAttrList instance.
+	 The owner of the list is responsible for walking the list and recursively
+	 freeing all data in it when the list should be disposed. */
 struct XAttrList {
   char* name;
   struct XAttrList* next;
