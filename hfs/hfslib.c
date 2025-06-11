@@ -4,8 +4,8 @@
 #include <time.h>
 #include <sys/param.h>
 #include <sys/types.h>
-#include <hfs/hfslib.h>
-#include <hfs/hfscompress.h>
+#include "hfs/hfslib.h"
+#include "hfs/hfscompress.h"
 #include <sys/stat.h>
 #include <inttypes.h>
 #ifdef WIN32
@@ -300,6 +300,8 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 	char testBuffer[MAXPATHLEN+1];
 	char* pathComponent;
 	int pathLen;
+	size_t totalLen;
+	size_t componentBufSz;
 	
 	char* name;
 	
@@ -313,22 +315,25 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 	AbstractFile* file;
 	HFSPlusCatalogFile* outFile;
 	
-	pathComponent = stpncpy(fullName, parentName, MAXPATHLEN+1);
-	ASSERT(pathComponent < (fullName + MAXPATHLEN + 1),
-	       "addAllInFolder: parentName too long");
+	totalLen = strlcpy(fullName, parentName, MAXPATHLEN+1);
+	ASSERT(totalLen <= MAXPATHLEN, "addAllInFolder: parentName too long");
+	pathComponent = fullName + totalLen;
+	componentBufSz = MAXPATHLEN + 1 - totalLen;
 	
 	ASSERT(getcwd(cwd, MAXPATHLEN+1) != NULL, "cannot get current working directory");
 	
 	theList = nextEntry = getFolderContents(folderID, volume);
 	
-	ASSERT((dir = opendir(cwd)) != NULL, "opendir");
+	ASSERT((dir = opendir(cwd)) != NULL, "addAllInFolder: cannot opendir CWD");
 	
 	while((ent = readdir(dir)) != NULL) {
+		/* skip `.` and `..` */
 		if(ent->d_name[0] == '.' && (ent->d_name[1] == '\0' || (ent->d_name[1] == '.' && ent->d_name[2] == '\0'))) {
 			continue;
 		}
 		
-		strcpy(pathComponent, ent->d_name);
+		totalLen = strlcpy(pathComponent, ent->d_name, componentBufSz);
+		ASSERT(totalLen < componentBufSz, "addAllInFolder: assembled path too long");
 		pathLen = strlen(fullName);
 		
 		cnid = 0;
