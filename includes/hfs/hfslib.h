@@ -11,6 +11,11 @@ extern "C" {
 	int add_hfs(Volume* volume, AbstractFile* inFile, const char* outFileName);
 	void grow_hfs(Volume* volume, uint64_t newSize);
 	void removeAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* parentName);
+	/* Copies all files in the current working directory into the directory named
+		`parentName` under the HFS folder with ID `folderID` in volume `volume`.
+		 Crashes on failure. Symlinks are traversed. On name conflict, overwrite.
+		 parentName must end with a forward slash (path separator) unless it is
+		 the empty string. */
 	void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* parentName);
 	void addall_hfs(Volume* volume, const char* dirToMerge, const char* dest);
 	void extractAllInFolder(HFSCatalogNodeID folderID, Volume* volume);
