@@ -557,6 +557,25 @@ extern "C" {
 	void flipCatalogFile(HFSPlusCatalogFile* record);
 	void flipCatalogThread(HFSPlusCatalogThread* record, int out);
 
+	/* If `rec` points to a catalog record with recordtype kHFSPlusFolderRecord,
+	   return `rec` (cast to HFSPlusCatalogFolder*). Otherwise, return NULL. */
+	HFSPlusCatalogFolder* tryCatalogRecordAsFolder(HFSPlusCatalogRecord* rec);
+	/* If `rec` points to a catalog record with recordtype kHFSPlusFileRecord,
+	   return `rec` (cast to HFSPlusCatalogFile*). Otherwise, return NULL. */
+	HFSPlusCatalogFile* tryCatalogRecordAsFile(HFSPlusCatalogRecord* rec);
+	/* If `rec` points to a catalog record with recordtype equal to either
+	   kHFSPlusFileThreadRecord or kHFSPlusFolderThreadRecord, return `rec`
+		 (cast to HFSPlusCatalogThread*). Otherwise, return NULL. */
+	HFSPlusCatalogThread* tryCatalogRecordAsThread(HFSPlusCatalogRecord* rec);
+	/* If `rec` points to a catalog record with recordtype
+	   kHFSPlusFileThreadRecord, return `rec` (cast as HFSPlusCatalogThread*).
+		 Otherwise, return NULL. */
+	HFSPlusCatalogThread* tryCatalogRecordAsFileThread(HFSPlusCatalogRecord *rec);
+	/* If `rec` points to a catalog record with recordtype
+	   kHFSPlusFolderThreadRecord, return `rec` (cast as HFSPlusCatalogThread*).
+		 Otherwise, return NULL. */
+	HFSPlusCatalogThread* tryCatalogRecordAsFolderThread(HFSPlusCatalogRecord *rec);
+
 	BTree* openCatalogTree(io_func* file);
 	int updateCatalog(Volume* volume, HFSPlusCatalogRecord* catalogRecord);
 	int move(const char* source, const char* dest, Volume* volume);

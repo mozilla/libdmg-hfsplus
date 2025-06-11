@@ -114,6 +114,39 @@ void flipCatalogThread(HFSPlusCatalogThread* record, int out) {
   }
 }
 
+HFSPlusCatalogFolder* tryCatalogRecordAsFolder(HFSPlusCatalogRecord* rec) {
+	if (!rec) return NULL;
+	if (rec->recordType != kHFSPlusFolderRecord) return NULL;
+	return (HFSPlusCatalogFolder*)rec;
+}
+
+HFSPlusCatalogFile* tryCatalogRecordAsFile(HFSPlusCatalogRecord* rec) {
+	if (!rec) return NULL;
+	if (rec->recordType != kHFSPlusFileRecord) return NULL;
+	return (HFSPlusCatalogFile*)rec;
+}
+
+HFSPlusCatalogThread* tryCatalogRecordAsThread(HFSPlusCatalogRecord* rec) {
+	if (!rec) return NULL;
+	if (rec->recordType != kHFSPlusFolderThreadRecord
+	    && rec->recordType != kHFSPlusFileThreadRecord) {
+		return NULL;
+	}
+	return (HFSPlusCatalogFolder*)rec;
+}
+
+HFSPlusCatalogThread* tryCatalogRecordAsFolderThread(HFSPlusCatalogRecord* rec) {
+	if (!rec) return NULL;
+	if (rec->recordType != kHFSPlusFolderThreadRecord) return NULL;
+	return (HFSPlusCatalogThread*)rec;
+}
+
+HFSPlusCatalogThread* tryCatalogRecordAsFileThread(HFSPlusCatalogRecord* rec) {
+	if (!rec) return NULL;
+	if (rec->recordType != kHFSPlusFileThreadRecord) return NULL;
+	return (HFSPlusCatalogThread*)rec;
+}
+
 #define UNICODE_START (sizeof(uint16_t) + sizeof(HFSCatalogNodeID) + sizeof(uint16_t))
 
 static void catalogKeyPrint(BTKey* toPrint) {
