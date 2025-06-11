@@ -132,7 +132,7 @@ HFSPlusCatalogThread* tryCatalogRecordAsThread(HFSPlusCatalogRecord* rec) {
 	    && rec->recordType != kHFSPlusFileThreadRecord) {
 		return NULL;
 	}
-	return (HFSPlusCatalogFolder*)rec;
+	return (HFSPlusCatalogThread*)rec;
 }
 
 HFSPlusCatalogThread* tryCatalogRecordAsFolderThread(HFSPlusCatalogRecord* rec) {

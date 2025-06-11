@@ -4,6 +4,7 @@
 #include <time.h>
 #include <sys/param.h>
 #include <sys/types.h>
+#include "common.h"
 #include "hfs/hfslib.h"
 #include "hfs/hfscompress.h"
 #include <sys/stat.h>
@@ -309,6 +310,8 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 	DIR* tmp;
 	
 	HFSCatalogNodeID cnid;
+	HFSPlusCatalogFolder* recordAsFolder;
+	HFSPlusCatalogFile* recordAsFile;
 	
 	struct dirent* ent;
 	
@@ -327,7 +330,7 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 	ASSERT((dir = opendir(cwd)) != NULL, "addAllInFolder: cannot opendir CWD");
 	
 	while((ent = readdir(dir)) != NULL) {
-		/* skip `.` and `..` */
+		/* Skip `.` and `..` */
 		if(ent->d_name[0] == '.' && (ent->d_name[1] == '\0' || (ent->d_name[1] == '.' && ent->d_name[2] == '\0'))) {
 			continue;
 		}
@@ -336,13 +339,20 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 		ASSERT(totalLen < componentBufSz, "addAllInFolder: assembled path too long");
 		pathLen = strlen(fullName);
 		
+		/* Look for an existing item to overwrite. */
 		cnid = 0;
 		nextEntry = theList;
 		while(nextEntry != NULL) {
 			name = unicodeToAscii(&nextEntry->name);
 			if(strcmp(name, ent->d_name) == 0) {
-				cnid = (nextEntry->record->recordType == kHFSPlusFolderRecord) ? (((HFSPlusCatalogFolder*)nextEntry->record)->folderID)
-				: (((HFSPlusCatalogFile*)nextEntry->record)->fileID);
+				/* Assignment inside condition is intended. */
+				if ((recordAsFolder = tryCatalogRecordAsFolder(nextEntry->record)) != NULL) {
+					cnid = recordAsFolder->folderID;
+				} else if ((recordAsFile = tryCatalogRecordAsFile(nextEntry->record)) != NULL) {
+					cnid = recordAsFile->fileID;
+				} else {
+					ASSERT(0, "addAllInFolder: trying to overwrite a strange record");
+				}
 				free(name);
 				break;
 			}
