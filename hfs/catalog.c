@@ -461,7 +461,7 @@ HFSPlusCatalogRecord* getLinkTarget(HFSPlusCatalogRecord* record, HFSCatalogNode
 	} else if(record->recordType == kHFSPlusFileRecord && (((HFSPlusCatalogFile*)record)->userInfo.fileType) == kHardLinkFileType) {
 		sprintf(pathBuffer, "iNode%d", ((HFSPlusCatalogFile*)record)->permissions.special.iNodeNum);
 		nkey.parentID = volume->metadataDir;
-    		ASCIIToUnicode(pathBuffer, &nkey.nodeName); 
+		ASCIIToUnicode(pathBuffer, &nkey.nodeName); 
 		nkey.keyLength = sizeof(nkey.parentID) + sizeof(nkey.nodeName.length) + (sizeof(uint16_t) * nkey.nodeName.length);
 
 		toReturn = (HFSPlusCatalogRecord*) search(volume->catalogTree, (BTKey*)(&nkey), &exact, NULL, NULL);
