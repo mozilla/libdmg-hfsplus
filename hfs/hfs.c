@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <hfs/hfsplus.h>
 #include <dirent.h>
+#include <getopt.h>
 
 #include <hfs/hfslib.h>
 #include "abstractfile.h"

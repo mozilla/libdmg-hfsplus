@@ -292,8 +292,13 @@ void removeAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* pa
 	}
 }
 
-
 void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* parentName) {
+	addAllInFolder2(folderID, volume, parentName, kIncomingSymlinksTraverse, TRUE);
+}
+
+void addAllInFolder2(
+		HFSCatalogNodeID folderID, Volume* volume, const char* parentName,
+		IncomingSymlinkPolicy symlinkPolicy, char assignSpecialPermissions) {
 	CatalogRecordList* nextEntry;
 	CatalogRecordList* theList;
 	char cwd[MAXPATHLEN+1];
@@ -361,6 +366,24 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 		}
 		
 	  ASSERT(lstat(ent->d_name, &st) == 0, "addAllInFolder: lstat failed");
+		if (S_ISLNK(st.st_mode)) {
+			ASSERT(symlinkPolicy != kIncomingSymlinksFail,
+					"addAllInFolder: found a symlink when symlink policy is \"fail\"");
+			if (symlinkPolicy == kIncomingSymlinksCopy) {
+				testBuffer[0] = '\0';
+				ASSERT(readlink(ent->d_name, testBuffer, MAXPATHLEN+1),
+				    "addAllInFolder: readlink failed");
+				ASSERT(makeSymlink(fullName, testbuffer, volume),
+				    "addAllInFolder: makesymlink failed");
+				continue;
+			} else if (symlinkPolicy == kIncomingSymlinksTraverse) {
+				ASSERT(stat(ent->d_name, &st) == 0, "addallInFolder: stat failed");
+				/* Continue processing, using the stat record from the link target. */
+			} else {
+				ASSERT(0, "addAllInFolder: unrecognized symlink policy");
+			}
+		}
+		/* After traversing a symlink, continue processing the resolved item. */
 		if (S_ISDIR(st.st_mode)) {
 			printf("folder: %s\n", fullName); fflush(stdout);
 			
@@ -376,7 +399,7 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 			printf("Setting permissions to %06o for %s\n", st.st_mode, fullName);
 			/* Recurse */
 			ASSERT(chdir(ent->d_name) == 0, "chdir");
-			addAllInFolder(cnid, volume, fullName);
+			addAllInFolder2(cnid, volume, fullName, symlinkPolicy, assignSpecialPermissions);
 			ASSERT(chdir(cwd) == 0, "chdir");
 		} else if (S_ISREG(st.st_mode)) {
 			printf("file: %s\n", fullName);	fflush(stdout);
@@ -392,36 +415,38 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 			/* Copy permissions from the source file */
 			chmodFile(fullName, (int)st.st_mode, volume);
 			printf("Setting permissions to %06o for %s\n", st.st_mode, fullName);
-			
-			if(strncmp(fullName, "/Applications/", sizeof("/Applications/") - 1) == 0) {
-				testBuffer[0] = '\0';
-				strcpy(testBuffer, "/Applications/");
-				strcat(testBuffer, ent->d_name);
-				strcat(testBuffer, ".app/");
-				strcat(testBuffer, ent->d_name);
-				if(strcmp(testBuffer, fullName) == 0) {
-					if(strcmp(ent->d_name, "Installer") == 0
-					|| strcmp(ent->d_name, "BootNeuter") == 0
-					) {
-						printf("Giving setuid permissions to %s...\n", fullName); fflush(stdout);
-						chmodFile(fullName, 04755, volume);
-					} else {
-						printf("Giving permissions to %s\n", fullName); fflush(stdout);
-						chmodFile(fullName, 0755, volume);
+
+			if (assignSpecialPermissions) {
+				if(strncmp(fullName, "/Applications/", sizeof("/Applications/") - 1) == 0) {
+					testBuffer[0] = '\0';
+					strcpy(testBuffer, "/Applications/");
+					strcat(testBuffer, ent->d_name);
+					strcat(testBuffer, ".app/");
+					strcat(testBuffer, ent->d_name);
+					if(strcmp(testBuffer, fullName) == 0) {
+						if(strcmp(ent->d_name, "Installer") == 0
+						|| strcmp(ent->d_name, "BootNeuter") == 0
+						) {
+							printf("Giving setuid permissions to %s...\n", fullName); fflush(stdout);
+							chmodFile(fullName, 04755, volume);
+						} else {
+							printf("Giving permissions to %s\n", fullName); fflush(stdout);
+							chmodFile(fullName, 0755, volume);
+						}
 					}
+				} else if(strncmp(fullName, "/bin/", sizeof("/bin/") - 1) == 0
+					|| strncmp(fullName, "/Applications/BootNeuter.app/bin/", sizeof("/Applications/BootNeuter.app/bin/") - 1) == 0
+					|| strncmp(fullName, "/sbin/", sizeof("/sbin/") - 1) == 0
+					|| strncmp(fullName, "/usr/sbin/", sizeof("/usr/sbin/") - 1) == 0
+					|| strncmp(fullName, "/usr/bin/", sizeof("/usr/bin/") - 1) == 0
+					|| strncmp(fullName, "/usr/libexec/", sizeof("/usr/libexec/") - 1) == 0
+					|| strncmp(fullName, "/usr/local/bin/", sizeof("/usr/local/bin/") - 1) == 0
+					|| strncmp(fullName, "/usr/local/sbin/", sizeof("/usr/local/sbin/") - 1) == 0
+					|| strncmp(fullName, "/usr/local/libexec/", sizeof("/usr/local/libexec/") - 1) == 0
+					) {
+					chmodFile(fullName, 0755, volume);
+					printf("Giving permissions to %s\n", fullName); fflush(stdout);
 				}
-			} else if(strncmp(fullName, "/bin/", sizeof("/bin/") - 1) == 0
-				|| strncmp(fullName, "/Applications/BootNeuter.app/bin/", sizeof("/Applications/BootNeuter.app/bin/") - 1) == 0
-				|| strncmp(fullName, "/sbin/", sizeof("/sbin/") - 1) == 0
-				|| strncmp(fullName, "/usr/sbin/", sizeof("/usr/sbin/") - 1) == 0
-				|| strncmp(fullName, "/usr/bin/", sizeof("/usr/bin/") - 1) == 0
-				|| strncmp(fullName, "/usr/libexec/", sizeof("/usr/libexec/") - 1) == 0
-				|| strncmp(fullName, "/usr/local/bin/", sizeof("/usr/local/bin/") - 1) == 0
-				|| strncmp(fullName, "/usr/local/sbin/", sizeof("/usr/local/sbin/") - 1) == 0
-				|| strncmp(fullName, "/usr/local/libexec/", sizeof("/usr/local/libexec/") - 1) == 0
-				) {
-				chmodFile(fullName, 0755, volume);
-				printf("Giving permissions to %s\n", fullName); fflush(stdout);
 			}
 		} else {
 			ASSERT(0, "addAllInFolder: cannot handle special file objects");
