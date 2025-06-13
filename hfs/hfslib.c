@@ -307,13 +307,13 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 	char* name;
 	
 	DIR* dir;
-	DIR* tmp;
 	
 	HFSCatalogNodeID cnid;
 	HFSPlusCatalogFolder* recordAsFolder;
 	HFSPlusCatalogFile* recordAsFile;
 	
 	struct dirent* ent;
+	struct stat st;
 	
 	AbstractFile* file;
 	HFSPlusCatalogFile* outFile;
@@ -360,25 +360,25 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 			nextEntry = nextEntry->next;
 		}
 		
-		if((tmp = opendir(ent->d_name)) != NULL) {
-			closedir(tmp);
+	  ASSERT(lstat(ent->d_name, &st) == 0, "addAllInFolder: lstat failed");
+		if (S_ISDIR(st.st_mode)) {
 			printf("folder: %s\n", fullName); fflush(stdout);
 			
 			if(cnid == 0) {
 				cnid = newFolder(fullName, volume);
 			}
 			
+			ASSERT(pathlen < MAXPATHLEN, "addAllInFolder: path too long, can't recurse");
 			fullName[pathLen] = '/';
 			fullName[pathLen + 1] = '\0';
 			/* Copy permissions from the source folder */
-			struct stat st;
-			ASSERT (lstat(ent->d_name, &st) == 0, "lstat");
 			chmodFile(fullName, (int)st.st_mode, volume);
 			printf("Setting permissions to %06o for %s\n", st.st_mode, fullName);
+			/* Recurse */
 			ASSERT(chdir(ent->d_name) == 0, "chdir");
 			addAllInFolder(cnid, volume, fullName);
 			ASSERT(chdir(cwd) == 0, "chdir");
-		} else {
+		} else if (S_ISREG(st.st_mode)) {
 			printf("file: %s\n", fullName);	fflush(stdout);
 			if(cnid == 0) {
 				cnid = newFile(fullName, volume);
@@ -390,8 +390,6 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 			file->close(file);
 			free(outFile);
 			/* Copy permissions from the source file */
-			struct stat st;
-			ASSERT (lstat(ent->d_name, &st) == 0, "lstat");
 			chmodFile(fullName, (int)st.st_mode, volume);
 			printf("Setting permissions to %06o for %s\n", st.st_mode, fullName);
 			
@@ -425,8 +423,10 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 				chmodFile(fullName, 0755, volume);
 				printf("Giving permissions to %s\n", fullName); fflush(stdout);
 			}
-		}
-	}
+		} else {
+			ASSERT(0, "addAllInFolder: cannot handle special file objects");
+		}  /* if(S_IS<something>(st.st_mode) */
+	} /* while((ent = readdir(dir)) */
 	
 	closedir(dir);
 	
