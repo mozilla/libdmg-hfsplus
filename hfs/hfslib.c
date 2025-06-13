@@ -298,7 +298,7 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 
 void addAllInFolder2(
 		HFSCatalogNodeID folderID, Volume* volume, const char* parentName,
-		IncomingSymlinkPolicy symlinkPolicy, char assignSpecialPermissions) {
+		IncomingSymlinksPolicy symlinkPolicy, char assignSpecialPermissions) {
 	CatalogRecordList* nextEntry;
 	CatalogRecordList* theList;
 	char cwd[MAXPATHLEN+1];
@@ -564,13 +564,19 @@ void extractAllInFolder(HFSCatalogNodeID folderID, Volume* volume) {
 
 
 void addall_hfs(Volume* volume, const char* dirToMerge, const char* dest) {
+	addall_hfs_2(volume, dirToMerge, dest, kIncomingSymlinksTraverse, TRUE);
+}
+
+void addall_hfs_2(
+			Volume* volume, const char* dirToMerge, const char* dest,
+			IncomingSymlinksPolicy symlinkPolicy, char assignSpecialPermissions) {
 	HFSPlusCatalogRecord* record;
 	char* name;
-	char cwd[1024];
-	char initPath[1024];
+	char cwd[MAXPATHLEN+1];
+	char initPath[MAXPATHLEN+1];
 	int lastCharOfPath;
 	
-	ASSERT(getcwd(cwd, 1024) != NULL, "cannot get current working directory");
+	ASSERT(getcwd(cwd, MAXPATHLEN+1) != NULL, "addall_hfs_2: getcwd failed");
 	
 	if(chdir(dirToMerge) != 0) {
 		printf("Cannot open that directory: %s\n", dirToMerge);
@@ -578,7 +584,9 @@ void addall_hfs(Volume* volume, const char* dirToMerge, const char* dest) {
 	}
 	
 	record = getRecordFromPath(dest, volume, &name, NULL);
-	strcpy(initPath, dest);
+	/* reduced limit leaves room for appending '/' */
+	ASSERT(strlcpy(initPath, dest, MAXPATHLEN) < MAXPATHLEN,
+	       "addall_hfs_2: dest too long");
 	lastCharOfPath = strlen(dest) - 1;
 	if(dest[lastCharOfPath] != '/') {
 		initPath[lastCharOfPath + 1] = '/';
@@ -587,7 +595,9 @@ void addall_hfs(Volume* volume, const char* dirToMerge, const char* dest) {
 	
 	if(record != NULL) {
 		if(record->recordType == kHFSPlusFolderRecord)
-			addAllInFolder(((HFSPlusCatalogFolder*)record)->folderID, volume, initPath);
+			addAllInFolder2(
+					((HFSPlusCatalogFolder*)record)->folderID, volume,  initPath,
+					symlinkPolicy, assignSpecialPermissions);
 		else {
 			printf("Not a folder\n");
 			exit(0);

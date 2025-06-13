@@ -17,7 +17,7 @@ typedef enum {
 
 	/* No symlinks should be in the input. If any are present, crash. */
 	kIncomingSymlinksFail
-} IncomingSymlinkPolicy;
+} IncomingSymlinksPolicy;
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,12 +37,22 @@ extern "C" {
 	void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* parentName);
 	/* Like `addAllInFolder`, except the `symlinkPolicy` parameter controls how
 	   symlinks in the input are handled, and `assignSpecialPermissions` controls
-		 whether to assign alternate permissions to specified paths, used for
-		 system images, installation packages, and BootNeuter. */
+		 whether to assign alternate permissions to some specific paths associated
+		 with system image installers, BootNeuter, and/or system binaries. */
 	void addAllInFolder2(
 			HFSCatalogNodeID folderID, Volume* volume, const char* parentName,
-			IncomingSymlinkPolicy symlinkPolicy, char assignSpecialPermissions);
+			IncomingSymlinksPolicy symlinkPolicy, char assignSpecialPermissions);
+	/* Copies all files from the local filesystem directory named `dirToMerge`
+	   into the directory named `dest` inside volume `volume`. Crashes on failure.
+		 Symlinks are traversed. Some paths receive special permissions. */ 
 	void addall_hfs(Volume* volume, const char* dirToMerge, const char* dest);
+	/* Like `addall_hfs`, except `symlinkPolicy` controls how symlinks in the
+	   input are handled, and `assignSpecialPermissions` controls whether to
+		 assign alternate permisisons to some specific paths associated with system
+		 image installers, BootNeuter, and/or system binaries. */
+	void addall_hfs_2(
+			Volume* volume, const char* dirToMerge, const char* dest,
+			IncomingSymlinksPolicy symlinkPolicy, char assignSpecialPermissions);
 	void extractAllInFolder(HFSCatalogNodeID folderID, Volume* volume);
 	int copyAcrossVolumes(Volume* volume1, Volume* volume2, char* path1, char* path2);
 

@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -328,9 +329,53 @@ void TestByteOrder()
 }
 
 
+IncomingSymlinksPolicy must_parse_symlink_policy(const char* policy) {
+	int n = strlen(policy);
+	char *lowered = malloc((n+1)* sizeof(char));
+	ASSERT(lowered, "hfs: parsing --symlinks: out of memory");
+	for (int i = 0; i < n; i++) {
+		lowered[i] = tolower(policy[i]);
+	}
+	lowered[n] = '\0';
+
+	if (strcmp(lowered, "fail") == 0) {
+		free(lowered);
+		return kIncomingSymlinksFail;
+	}
+	if (strcmp(lowered, "traverse") == 0) {
+		free(lowered);
+		return kIncomingSymlinksTraverse;
+	}
+	if (strcmp(lowered, "copy") == 0) {
+		free(lowered);
+		return kIncomingSymlinksCopy;
+	}
+	
+	free(lowered);
+	printf("unrecognized value for --symlinks: %s", policy);
+	usage();
+	exit(1);
+}
+
+char must_parse_bool(const char* str, const char* flagname) {
+	if (str == NULL || str[0] == '\0') {
+		printf("no value provided for --%s", flagname);
+		usage();
+		exit(1);
+	}
+	if (strchr("yYtT1", str[0])) return TRUE;
+	if (strchr("nNfF0", str[0])) return FALSE;
+	printf("cannot recognize a bool in value for --%s: %s", flagname, str);
+	usage();
+	exit(1);
+}
+
 int main(int argc, const char *argv[]) {
 	io_func* io;
 	Volume* volume;
+
+	IncomingSymlinksPolicy symlink_policy = kIncomingSymlinksTraverse;
+	char assign_special_permissions = TRUE;
 	
 	TestByteOrder();
 	
@@ -351,7 +396,30 @@ int main(int argc, const char *argv[]) {
 		CLOSE(io);
 		return 1;
 	}
-	
+
+	const char *optstring = "s:m:";
+	const struct option longopts[] = {
+		{"symlinks", required_argument, NULL, 's'},
+		{"special-modes", required_argument, NULL, 'm'},
+		{NULL, 0, NULL, 0},
+	};
+	int opt;
+	while ((opt = getopt_long(argc, argv, optstring, longopts, NULL)) != -1) {
+		switch (opt) {
+			case 's':
+				symlink_policy = must_parse_symlink_policy(optarg);
+				break;
+			case 'm':
+				assign_special_permissions = must_parse_bool(optarg, "special-modes");
+				break;
+			default:
+				usage(argv[0]);
+				exit(2);
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
 	if(argc > 1) {
 		if(strcmp(argv[2], "ls") == 0) {
 			cmd_ls(volume, argc - 2, argv + 2);
