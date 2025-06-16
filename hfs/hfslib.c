@@ -333,6 +333,10 @@ void addAllInFolder2(
 	theList = nextEntry = getFolderContents(folderID, volume);
 	
 	ASSERT((dir = opendir(cwd)) != NULL, "addAllInFolder: cannot opendir CWD");
+
+	printf(
+		"info: addAllInFolder2: running in %s with symlink policy %d and permission setting %d\n",
+		cwd, symlinkPolicy, assignSpecialPermissions);
 	
 	while((ent = readdir(dir)) != NULL) {
 		/* Skip `.` and `..` */
