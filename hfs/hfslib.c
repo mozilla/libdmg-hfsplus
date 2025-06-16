@@ -375,8 +375,12 @@ void addAllInFolder2(
 					"addAllInFolder: found a symlink when symlink policy is \"fail\"");
 			if (symlinkPolicy == kIncomingSymlinksCopy) {
 				testBuffer[0] = '\0';
-				ASSERT(readlink(ent->d_name, testBuffer, MAXPATHLEN+1),
+				ssize_t zloc = 0;
+				ASSERT((zloc = readlink(ent->d_name, testBuffer, MAXPATHLEN)) >= 0,
 				    "addAllInFolder: readlink failed");
+				ASSERT(zloc <= MAXPATHLEN, "addAllInFolder: readlink overwrote");
+				/* readlink doesn't add a null terminator; we have to do it.*/
+				testBuffer[zloc] = '\0';
 				ASSERT(makeSymlink(fullName, testBuffer, volume),
 				    "addAllInFolder: makesymlink failed");
 				continue;
