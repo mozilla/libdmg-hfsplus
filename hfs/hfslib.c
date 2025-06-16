@@ -373,7 +373,7 @@ void addAllInFolder2(
 				testBuffer[0] = '\0';
 				ASSERT(readlink(ent->d_name, testBuffer, MAXPATHLEN+1),
 				    "addAllInFolder: readlink failed");
-				ASSERT(makeSymlink(fullName, testbuffer, volume),
+				ASSERT(makeSymlink(fullName, testBuffer, volume),
 				    "addAllInFolder: makesymlink failed");
 				continue;
 			} else if (symlinkPolicy == kIncomingSymlinksTraverse) {
@@ -391,7 +391,7 @@ void addAllInFolder2(
 				cnid = newFolder(fullName, volume);
 			}
 			
-			ASSERT(pathlen < MAXPATHLEN, "addAllInFolder: path too long, can't recurse");
+			ASSERT(pathLen < MAXPATHLEN, "addAllInFolder: path too long, can't recurse");
 			fullName[pathLen] = '/';
 			fullName[pathLen + 1] = '\0';
 			/* Copy permissions from the source folder */

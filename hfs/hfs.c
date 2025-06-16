@@ -4,25 +4,27 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
-#include <hfs/hfsplus.h>
 #include <dirent.h>
 #include <getopt.h>
 
-#include <hfs/hfslib.h>
+#include "common.h"
+#include "hfs/hfslib.h"
+#include "hfs/hfsplus.h"
 #include "abstractfile.h"
 #include <inttypes.h>
 
 char endianness;
 
 
-void cmd_ls(Volume* volume, int argc, const char *argv[]) {
-	if(argc > 1)
+void cmd_ls(Volume* volume, int argc, char *argv[]) {
+	if(argc > 1) {
 		hfs_ls(volume, argv[1]);
-	else
+	} else {
 		hfs_ls(volume, "/");
+	}
 }
 
-void cmd_cat(Volume* volume, int argc, const char *argv[]) {
+void cmd_cat(Volume* volume, int argc, char *argv[]) {
 	HFSPlusCatalogRecord* record;
 	AbstractFile* stdoutFile;
 
@@ -30,120 +32,110 @@ void cmd_cat(Volume* volume, int argc, const char *argv[]) {
 
 	stdoutFile = createAbstractFileFromFile(stdout);
 	
-	if(record != NULL) {
-		if(record->recordType == kHFSPlusFileRecord)
-			writeToFile((HFSPlusCatalogFile*)record, stdoutFile, volume);
-		else
-			printf("Not a file\n");
-	} else {
-		printf("No such file or directory\n");
-	}
+	ASSERT(record != NULL, "No such file or directory");
+	ASSERT(record->recordType == kHFSPlusFileRecord, "Not a file");
+	writeToFile((HFSPlusCatalogFile*)record, stdoutFile, volume);
 	
 	free(record);
 	free(stdoutFile);
 }
 
-void cmd_extract(Volume* volume, int argc, const char *argv[]) {
+void cmd_extract(Volume* volume, int argc, char *argv[]) {
 	HFSPlusCatalogRecord* record;
 	AbstractFile *outFile;
 	
 	if(argc < 3) {
-		printf("Not enough arguments");
-		return;
+		fprintf(stderr, "Not enough arguments\n");
+		exit(2);
 	}
 	
 	outFile = createAbstractFileFromFile(fopen(argv[2], "wb"));
-	
-	if(outFile == NULL) {
-		printf("cannot create file");
-	}
+	ASSERT(outFile != NULL, "cannot create file");
 	
 	record = getRecordFromPath(argv[1], volume, NULL, NULL);
 	
-	if(record != NULL) {
-		if(record->recordType == kHFSPlusFileRecord)
-			writeToFile((HFSPlusCatalogFile*)record, outFile, volume);
-		else
-			printf("Not a file\n");
-	} else {
-		printf("No such file or directory\n");
-	}
+	ASSERT(record != NULL, "No such file or directory");
+	ASSERT(record->recordType == kHFSPlusFileRecord, "Not a file");
+	writeToFile((HFSPlusCatalogFile*)record, outFile, volume);
 	
 	outFile->close(outFile);
 	free(record);
 }
 
-void cmd_mv(Volume* volume, int argc, const char *argv[]) {
+void cmd_mv(Volume* volume, int argc, char *argv[]) {
 	if(argc > 2) {
 		move(argv[1], argv[2], volume);
 	} else {
-		printf("Not enough arguments");
+		fprintf(stderr, "Not enough arguments\n");
+		exit(2);
 	}
 }
 
-void cmd_symlink(Volume* volume, int argc, const char *argv[]) {
+void cmd_symlink(Volume* volume, int argc, char *argv[]) {
 	if(argc > 2) {
 		makeSymlink(argv[1], argv[2], volume);
 	} else {
-		printf("Not enough arguments");
+		fprintf(stderr, "Not enough arguments\n");
+		exit(2);
 	}
 }
 
-void cmd_mkdir(Volume* volume, int argc, const char *argv[]) {
+void cmd_mkdir(Volume* volume, int argc, char *argv[]) {
 	if(argc > 1) {
 		newFolder(argv[1], volume);
 	} else {
-		printf("Not enough arguments");
+		fprintf(stderr, "Not enough arguments\n");
+		exit(2);
 	}
 }
 
-void cmd_add(Volume* volume, int argc, const char *argv[]) {
+void cmd_add(Volume* volume, int argc, char *argv[]) {
 	AbstractFile *inFile;
 	
 	if(argc < 3) {
-		printf("Not enough arguments");
-		return;
+		fprintf(stderr, "Not enough arguments\n");
+		exit(2);
 	}
 	
 	inFile = createAbstractFileFromFile(fopen(argv[1], "rb"));
-	
-	if(inFile == NULL) {
-		printf("file to add not found");
-	}
+	ASSERT(inFile != NULL, "File to add not found");
 
 	add_hfs(volume, inFile, argv[2]);
 }
 
-void cmd_rm(Volume* volume, int argc, const char *argv[]) {
+void cmd_rm(Volume* volume, int argc, char *argv[]) {
 	if(argc > 1) {
 		removeFile(argv[1], volume);
 	} else {
-		printf("Not enough arguments");
+		fprintf(stderr, "Not enough arguments\n");
+		exit(2);
 	}
 }
 
-void cmd_chmod(Volume* volume, int argc, const char *argv[]) {
+void cmd_chmod(Volume* volume, int argc, char *argv[]) {
 	int mode;
 	
 	if(argc > 2) {
 		sscanf(argv[1], "%o", &mode);
 		chmodFile(argv[2], mode, volume);
 	} else {
-		printf("Not enough arguments");
+		fprintf(stderr, "Not enough arguments\n");
+		exit(2);
 	}
 }
 
-void cmd_attr(Volume* volume, int argc, const char *argv[]) {
+void cmd_attr(Volume* volume, int argc, char *argv[]) {
 	int mode;
 
 	if(argc > 2) {
 		attrFile(argv[1], argv[2], volume);
 	} else {
-		printf("Not enough arguments");
+		fprintf(stderr, "Not enough arguments\n");
+		exit(2);
 	}
 }
 
-void cmd_extractall(Volume* volume, int argc, const char *argv[]) {
+void cmd_extractall(Volume* volume, int argc, char *argv[]) {
 	HFSPlusCatalogRecord* record;
 	char cwd[1024];
 	char* name;
@@ -159,21 +151,16 @@ void cmd_extractall(Volume* volume, int argc, const char *argv[]) {
 		ASSERT(chdir(argv[2]) == 0, "chdir");
 	}
 
-	if(record != NULL) {
-		if(record->recordType == kHFSPlusFolderRecord)
-			extractAllInFolder(((HFSPlusCatalogFolder*)record)->folderID, volume);  
-		else
-			printf("Not a folder\n");
-	} else {
-		printf("No such file or directory\n");
-	}
-	free(record);
-	
-	ASSERT(chdir(cwd) == 0, "chdir");
+	ASSERT(record != NULL, "No such file or directory");
+	ASSERT(record->recordType == kHFSPlusFolderRecord, "Not a folder");
+	extractAllInFolder(((HFSPlusCatalogFolder*)record)->folderID, volume);  
+
+	free(record);	
+	ASSERT(chdir(cwd) == 0, "chdir (reset)");
 }
 
 
-void cmd_rmall(Volume* volume, int argc, const char *argv[]) {
+void cmd_rmall(Volume* volume, int argc, char *argv[]) {
 	HFSPlusCatalogRecord* record;
 	char* name;
 	char initPath[1024];
@@ -193,22 +180,17 @@ void cmd_rmall(Volume* volume, int argc, const char *argv[]) {
 		initPath[1] = '\0';	
 	}
 	
-	if(record != NULL) {
-		if(record->recordType == kHFSPlusFolderRecord) {
-			removeAllInFolder(((HFSPlusCatalogFolder*)record)->folderID, volume, initPath);
-		} else {
-			printf("Not a folder\n");
-		}
-	} else {
-		printf("No such file or directory\n");
-	}
+	ASSERT(record != NULL, "No such file or directory");
+	ASSERT(record->recordType == kHFSPlusFolderRecord, "Not a folder");
+	removeAllInFolder(((HFSPlusCatalogFolder*)record)->folderID, volume, initPath);
+	
 	free(record);
 }
 
-void cmd_addall(Volume* volume, int argc, const char *argv[]) {   
+void cmd_addall(Volume* volume, int argc, char *argv[]) {
 	if(argc < 2) {
-		printf("Not enough arguments");
-		return;
+		fprintf(stderr, "Not enough arguments\n");
+		exit(2);
 	}
 
 	if(argc > 2) {
@@ -218,12 +200,12 @@ void cmd_addall(Volume* volume, int argc, const char *argv[]) {
 	}
 }
 
-void cmd_grow(Volume* volume, int argc, const char *argv[]) {
+void cmd_grow(Volume* volume, int argc, char *argv[]) {
 	uint64_t newSize;
 
 	if(argc < 2) {
-		printf("Not enough arguments\n");
-		return;
+		fprintf(stderr, "Not enough arguments\n");
+		exit(2);
 	}
 	
 	newSize = 0;
@@ -234,90 +216,92 @@ void cmd_grow(Volume* volume, int argc, const char *argv[]) {
 	printf("grew volume: %" PRId64 "\n", newSize);
 }
 
-void cmd_getattr(Volume* volume, int argc, const char *argv[]) {
+void cmd_getattr(Volume* volume, int argc, char *argv[]) {
 	HFSPlusCatalogRecord* record;
 
 	if(argc < 3) {
-		printf("Not enough arguments: getattr <path> <attribute-name>");
-		return;
+		fprintf(stderr, "Not enough arguments: getattr <path> <attribute-name>");
+		exit(2);
 	}
 
 	record = getRecordFromPath(argv[1], volume, NULL, NULL);
 
-	if(record != NULL) {
-		HFSCatalogNodeID id;
-		uint8_t* data;
-		size_t size;
-		if(record->recordType == kHFSPlusFileRecord)
-			id = ((HFSPlusCatalogFile*)record)->fileID;
-		else
-			id = ((HFSPlusCatalogFolder*)record)->folderID;
+	ASSERT(record != NULL, "No such file or directory");
 
-		size = getAttribute(volume, id, argv[2], &data);
+	HFSCatalogNodeID id;
 
-		if(size > 0) {
-			fwrite(data, size, 1, stdout);
-			free(data);
-		} else {
-			printf("No such attribute\n");
-		}
+	HFSPlusCatalogFile* file_record = tryCatalogRecordAsFile(record);
+	if (file_record != NULL) {
+		id = file_record->fileID;
 	} else {
-		printf("No such file or directory\n");
+		HFSPlusCatalogFolder* folder_record = tryCatalogRecordAsFolder(record);
+		ASSERT(folder_record != NULL, "Not a file or folder");
+		id = folder_record->folderID;
 	}
+
+	uint8_t* data;
+	size_t size = getAttribute(volume, id, argv[2], &data);
+	ASSERT(size > 0, "No such attribute");
+	fwrite(data, size, 1, stdout);
+	free(data);
 
 	free(record);
 }
 
-void cmd_setattr(Volume* volume, int argc, const char *argv[]) {
+void cmd_setattr(Volume* volume, int argc, char *argv[]) {
 	HFSPlusCatalogRecord* record;
 
 	if(argc < 4) {
-		printf("Not enough arguments: setattr <path> <attribute-name> <attribute-value>");
-		return;
+		fprintf(stderr, "Not enough arguments: setattr <path> <attribute-name> <attribute-value>");
+		exit(2);
 	}
 
 	record = getRecordFromPath(argv[1], volume, NULL, NULL);
+	ASSERT(record != NULL, "No such file or directory");
 
-	if(record != NULL) {
-		HFSCatalogNodeID id;
-		uint8_t* data;
-		size_t size;
-		if(record->recordType == kHFSPlusFileRecord)
-			id = ((HFSPlusCatalogFile*)record)->fileID;
-		else
-			id = ((HFSPlusCatalogFolder*)record)->folderID;
-
-		// Note: this doesn't handle embedded nulls, string encodings, etc.
-		size_t dataLen = strlen(argv[3]);
-		if (dataLen == 0) {
-			// Handle the empty string gracefully.
-			dataLen = 1;
-		}
-		if((dataLen & 0x1) == 0x1) {
-			// HFS record sizes must be even.  Pad the given data with one 0 to
-			// maintain this invariant.  Note that macOS `xattr` appears to do
-			// this silently.
-			dataLen += 1;
-		}
-		data = malloc(sizeof(uint8_t) * (dataLen));
-		memset(data, 0, dataLen);
-		memcpy(data, argv[3], strlen(argv[3]));
-
-		ASSERT(setAttribute(volume, id, argv[2], data, dataLen), "setAttribute");
+	HFSCatalogNodeID id;
+	uint8_t* data;
+	size_t size;
+	HFSPlusCatalogFile* fileRecord = tryCatalogRecordAsFile(record);
+	HFSPlusCatalogFolder* folderRecord = tryCatalogRecordAsFolder(record);
+	if (fileRecord != NULL) {
+		id = fileRecord->fileID;
+	} else if(folderRecord != NULL) {
+		id = folderRecord->folderID;
 	} else {
-		printf("No such file or directory\n");
+		ASSERT(0, "unexpected record type");
 	}
 
-	if(record->recordType == kHFSPlusFolderRecord) {
-		((HFSPlusCatalogFolder*)record)->flags |= kHFSHasAttributesMask;
-	} else if(record->recordType == kHFSPlusFileRecord) {
-		((HFSPlusCatalogFile*)record)->flags |= kHFSHasAttributesMask;
+	// Note: this doesn't handle embedded nulls, string encodings, etc.
+	size_t dataLen = strlen(argv[3]);
+	if (dataLen == 0) {
+		// Handle the empty string gracefully.
+		dataLen = 1;
+	}
+	if((dataLen & 0x1) == 0x1) {
+		// HFS record sizes must be even.  Pad the given data with one 0 to
+		// maintain this invariant.  Note that macOS `xattr` appears to do
+		// this silently.
+		dataLen += 1;
+	}
+	data = malloc(sizeof(uint8_t) * (dataLen));
+	memset(data, 0, dataLen);
+	memcpy(data, argv[3], strlen(argv[3]));
+
+	ASSERT(setAttribute(volume, id, argv[2], data, dataLen), "setAttribute");
+
+	if (fileRecord != NULL) {
+		fileRecord -> flags |= kHFSHasAttributesMask;
 	} else {
-		printf("unknown record type %x\n", record->recordType);
+		ASSERT(folderRecord != NULL, "unknown record type the second time?!");
+		folderRecord -> flags |= kHFSHasAttributesMask;
 	}
 
+	/* record is still the same object as fileRecord and folderRecord; the
+	   pointers of alternate types are aliases. So this update will commit the
+		 changes made through one of those pointers. This is one of the reasons we
+		 require -fno-strict-aliasing.*/
 	updateCatalog(volume, record);
-
 	free(record);
 }
 
@@ -328,11 +312,21 @@ void TestByteOrder()
 	endianness = byte[0] ? IS_LITTLE_ENDIAN : IS_BIG_ENDIAN;
 }
 
+void usage(const char* name) {
+	printf("usage: %s <image-file> <ls|cat|mv|mkdir|add|rm|chmod|extract|extractall|rmall|addall|attr|debug> <arguments>\n", name);
+	printf("OPTIONS:\n");
+	printf("\t--symlinks, -s        <fail, traverse, copy>: how to handle symlinks\n");
+	printf("\t                      in the input directory in command `addall`\n");
+	printf("\t--special-modes, -m   <yes, no>: whether to chmod files in the volume\n");
+	printf("\t                      when they are recognized with a name or path\n");
+	printf("\t                      where OS setup or iPhone jailbreaking would\n");
+	printf("\t                      require special permissions");
+}
 
-IncomingSymlinksPolicy must_parse_symlink_policy(const char* policy) {
+IncomingSymlinksPolicy must_parse_symlink_policy(const char* policy, const char* bin_name) {
 	int n = strlen(policy);
 	char *lowered = malloc((n+1)* sizeof(char));
-	ASSERT(lowered, "hfs: parsing --symlinks: out of memory");
+	ASSERT(lowered != NULL, "hfs: parsing --symlinks: out of memory");
 	for (int i = 0; i < n; i++) {
 		lowered[i] = tolower(policy[i]);
 	}
@@ -352,25 +346,26 @@ IncomingSymlinksPolicy must_parse_symlink_policy(const char* policy) {
 	}
 	
 	free(lowered);
-	printf("unrecognized value for --symlinks: %s", policy);
-	usage();
+	fprintf(stderr, "error: Unrecognized value for --symlinks: %s\n", policy);
+	usage(bin_name);
 	exit(1);
 }
 
-char must_parse_bool(const char* str, const char* flagname) {
+char must_parse_bool(const char* str, const char* flag_name, const char* bin_name) {
 	if (str == NULL || str[0] == '\0') {
-		printf("no value provided for --%s", flagname);
-		usage();
+		fprintf(stderr, "no value provided for --%s\n", flag_name);
+		usage(bin_name);
 		exit(1);
 	}
 	if (strchr("yYtT1", str[0])) return TRUE;
 	if (strchr("nNfF0", str[0])) return FALSE;
-	printf("cannot recognize a bool in value for --%s: %s", flagname, str);
-	usage();
+	fprintf(stderr, "error: Cannot recognize a bool in value for --%s: %s\n", flag_name, str);
+	usage(bin_name);
 	exit(1);
 }
 
-int main(int argc, const char *argv[]) {
+int main(int argc, char *argv[]) {
+	const char* bin_name = argv[0];
 	io_func* io;
 	Volume* volume;
 
@@ -378,24 +373,6 @@ int main(int argc, const char *argv[]) {
 	char assign_special_permissions = TRUE;
 	
 	TestByteOrder();
-	
-	if(argc < 3) {
-		printf("usage: %s <image-file> <ls|cat|mv|mkdir|add|rm|chmod|extract|extractall|rmall|addall|attr|debug> <arguments>\n", argv[0]);
-		return 0;
-	}
-	
-	io = openFlatFile(argv[1]);
-	if(io == NULL) {
-		fprintf(stderr, "error: Cannot open image-file.\n");
-		return 1;
-	}
-	
-	volume = openVolume(io); 
-	if(volume == NULL) {
-		fprintf(stderr, "error: Cannot open volume.\n");
-		CLOSE(io);
-		return 1;
-	}
 
 	const char *optstring = "s:m:";
 	const struct option longopts[] = {
@@ -407,19 +384,30 @@ int main(int argc, const char *argv[]) {
 	while ((opt = getopt_long(argc, argv, optstring, longopts, NULL)) != -1) {
 		switch (opt) {
 			case 's':
-				symlink_policy = must_parse_symlink_policy(optarg);
+				symlink_policy = must_parse_symlink_policy(optarg, bin_name);
 				break;
 			case 'm':
-				assign_special_permissions = must_parse_bool(optarg, "special-modes");
+				assign_special_permissions = must_parse_bool(optarg, "special-modes", bin_name);
 				break;
 			default:
-				usage(argv[0]);
+				usage(bin_name);
 				exit(2);
 		}
 	}
-	argc -= optind;
-	argv += optind;
+	argc -= optind - 1;
+	argv += optind - 1;
 
+	if(argc < 3) {
+		usage(bin_name);
+		return 2;
+	}
+	
+	io = openFlatFile(argv[1]);
+	ASSERT(io != NULL, "Cannot open image file.");
+	volume = openVolume(io); 
+	ASSERT(volume != NULL, "Cannot open volume.");
+
+	
 	if(argc > 1) {
 		if(strcmp(argv[2], "ls") == 0) {
 			cmd_ls(volume, argc - 2, argv + 2);
@@ -465,6 +453,10 @@ int main(int argc, const char *argv[]) {
 			} else {
 				debugBTree(volume->attrTree, FALSE);
 			}
+		} else {
+			fprintf(stderr, "unrecognized verb: %s\n", argv[2]);
+			usage(bin_name);
+			exit(2);
 		}
 	}
 	
