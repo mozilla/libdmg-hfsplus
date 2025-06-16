@@ -187,16 +187,17 @@ void cmd_rmall(Volume* volume, int argc, char *argv[]) {
 	free(record);
 }
 
-void cmd_addall(Volume* volume, int argc, char *argv[]) {
+void cmd_addall(Volume* volume, IncomingSymlinksPolicy symlink_policy,
+                char assign_special_permissions, int argc, char *argv[]) {
 	if(argc < 2) {
 		fprintf(stderr, "Not enough arguments\n");
 		exit(2);
 	}
 
 	if(argc > 2) {
-		addall_hfs(volume, argv[1], argv[2]);
+		addall_hfs_2(volume, argv[1], argv[2], symlink_policy, assign_special_permissions);
 	} else {
-		addall_hfs(volume, argv[1], "/");
+		addall_hfs_2(volume, argv[1], "/", symlink_policy, assign_special_permissions);
 	}
 }
 
@@ -434,7 +435,7 @@ int main(int argc, char *argv[]) {
 		} else if(strcmp(argv[2], "rmall") == 0) {
 			cmd_rmall(volume, argc - 2, argv + 2);
 		} else if(strcmp(argv[2], "addall") == 0) {
-			cmd_addall(volume, argc - 2, argv + 2);
+			cmd_addall(volume, symlink_policy, assign_special_permissions, argc - 2, argv + 2);
 		} else if(strcmp(argv[2], "grow") == 0) {
 			cmd_grow(volume, argc - 2, argv + 2);
 		} else if(strcmp(argv[2], "getattr") == 0) {
