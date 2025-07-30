@@ -791,6 +791,7 @@ static int growBTree(BTree* tree) {
     
     while(TRUE) {
       descriptor = readBTNodeDescriptor(mapNode, tree);
+      ASSERT(descriptor, "readBTNodeDescriptor");
 
       if(descriptor->fLink == 0) {
         descriptor->fLink = newNodesStart;
@@ -825,10 +826,11 @@ static int growBTree(BTree* tree) {
         byteNumber -= tree->headerRec->nodeSize - 20;
       } else {
         free(buffer);
-        
+        free(descriptor);
         ASSERT(writeBTHeaderRec(tree), "writeBTHeaderRec");
         return TRUE;
       }
+      free(descriptor);
     }
   }
   

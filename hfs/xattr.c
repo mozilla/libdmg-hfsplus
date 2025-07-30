@@ -132,36 +132,51 @@ static BTKey* attrDataRead(off_t offset, io_func* io) {
 	HFSPlusAttrRecord* record;
 
 	record = (HFSPlusAttrRecord*) malloc(sizeof(HFSPlusAttrRecord));
-
-	if(!READ(io, offset, sizeof(uint32_t), record))
+	if(!record) {
 		return NULL;
+	}
+	if(!READ(io, offset, sizeof(uint32_t), record)) {
+		free(record);
+		return NULL;
+	}
 
 	FLIPENDIAN(record->recordType);
 	switch(record->recordType)
 	{
 		case kHFSPlusAttrInlineData:
-			if(!READ(io, offset, sizeof(HFSPlusAttrData), record))
+			if(!READ(io, offset, sizeof(HFSPlusAttrData), record)) {
+				free(record);
 				return NULL;
+			}
 
 			flipAttrData((HFSPlusAttrData*) record);
 
 			record = realloc(record, sizeof(HFSPlusAttrData) + ((HFSPlusAttrData*) record)->size);
-			if(!READ(io, offset + sizeof(HFSPlusAttrData), ((HFSPlusAttrData*) record)->size, ((HFSPlusAttrData*) record)->data))
+			if (!record) {
 				return NULL;
+			}
+			if(!READ(io, offset + sizeof(HFSPlusAttrData), ((HFSPlusAttrData*) record)->size, ((HFSPlusAttrData*) record)->data)) {
+				free(record);
+				return NULL;
+			}
 
 			break;
 
 		case kHFSPlusAttrForkData:
-			if(!READ(io, offset, sizeof(HFSPlusAttrForkData), record))
+			if(!READ(io, offset, sizeof(HFSPlusAttrForkData), record)) {
+				free(record);
 				return NULL;
+			}
 
 			flipAttrForkData((HFSPlusAttrForkData*) record);
 
 			break;
 
 		case kHFSPlusAttrExtents:
-			if(!READ(io, offset, sizeof(HFSPlusAttrExtents), record))
+			if(!READ(io, offset, sizeof(HFSPlusAttrExtents), record)) {
+				free(record);
 				return NULL;
+			}
 
 			flipAttrExtents((HFSPlusAttrExtents*) record);
 
@@ -182,9 +197,11 @@ static int updateAttributes(Volume* volume, HFSPlusAttrKey* skey, HFSPlusAttrRec
 
 	record = (HFSPlusAttrRecord*) search(volume->attrTree, (BTKey*)(&key), &exact, NULL, NULL);
 	if(exact && record) {
+		removeFromBTree(volume->attrTree, (BTKey*)(&key));
+	}
+	if (record) {
 		free(record);
 		record = NULL;
-		removeFromBTree(volume->attrTree, (BTKey*)(&key));
 	}
 
 	switch(srecord->recordType) {
@@ -251,6 +268,7 @@ size_t getAttribute(Volume* volume, uint32_t fileID, const char* name, uint8_t**
 			return size;
 		default:
 			fprintf(stderr, "unsupported attribute node format\n");
+			free(record);
 			return 0;
 	}
 }
