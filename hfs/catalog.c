@@ -178,9 +178,9 @@ static int catalogCompare(BTKey* vLeft, BTKey* vRight) {
       if(i >= right->nodeName.length) {
         return 1;
       } else {
-      /* ugly hack to support weird : to / conversion on iPhone */
+        /* ugly hack to support weird : to / conversion on iPhone */
         if(left->nodeName.unicode[i] == ':') {
-          Left = '/';
+          cLeft = '/';
         } else {
         cLeft = left->nodeName.unicode[i] ;
       }
