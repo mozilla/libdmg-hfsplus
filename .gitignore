@@ -1,3 +1,5 @@
 build
 /venv/
 /test/*.t.err
+.DS_Store
+.vscode/settings.json
