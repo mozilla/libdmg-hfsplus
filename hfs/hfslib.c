@@ -317,10 +317,10 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 	
 	AbstractFile* file;
 	HFSPlusCatalogFile* outFile;
-	
+
 	nChars = strlen(parentName);
 	ASSERT(nChars <= MAXPATHLEN, "addAllInFolder: parentName too long");
-	memcpy(fullName, parentName, nchars+1);
+	memcpy(fullName, parentName, nChars+1);
 	pathComponent = fullName + nChars;
 	componentBufSz = MAXPATHLEN + 1 - nChars;
 	
