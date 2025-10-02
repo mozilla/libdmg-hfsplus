@@ -584,7 +584,7 @@ void addall_hfs_2(
 	char* name;
 	char cwd[MAXPATHLEN+1];
 	char initPath[MAXPATHLEN+1];
-	int lastCharOfPath;
+	size_t nChars;
 	
 	ASSERT(getcwd(cwd, MAXPATHLEN+1) != NULL, "addall_hfs_2: getcwd failed");
 	
@@ -595,12 +595,13 @@ void addall_hfs_2(
 	
 	record = getRecordFromPath(dest, volume, &name, NULL);
 	/* reduced limit leaves room for appending '/' */
-	ASSERT(strlcpy(initPath, dest, MAXPATHLEN) < MAXPATHLEN,
-	       "addall_hfs_2: dest too long");
-	lastCharOfPath = strlen(dest) - 1;
-	if(dest[lastCharOfPath] != '/') {
-		initPath[lastCharOfPath + 1] = '/';
-		initPath[lastCharOfPath + 2] = '\0';
+	
+	nChars = strlen(dest);
+	ASSERT(nChars < MAXPATHLEN - 1, "addall_hfs_2: dest too long");
+	memcpy(initPath, dest, nChars+1);
+	if (initPath[nChars-1] != '/') {
+		initPath[nChars] = '/';
+		initPath[nChars+1] = '\0';
 	}
 	
 	if(record != NULL) {

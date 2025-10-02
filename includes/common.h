@@ -8,6 +8,14 @@
 #include <string.h>
 #include <sys/types.h>
 
+// strlcpy looks useful, but not part of POSIX libc. BSD-inspired libc may
+// have it, but (as of 2025-Oct-2) Mozilla's build environment for 
+// libdmg-hfsplus doesn't.
+#ifdef strlcpy
+#undef strlcpy
+#endif
+#pragma GCC poison strlcpy
+
 #ifdef WIN32
 #include <unistd.h>
 #define fseeko fseeko64
