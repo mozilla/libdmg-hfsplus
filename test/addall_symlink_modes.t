@@ -18,10 +18,10 @@ Construct inputs:
   $ echo "file2" >> $STAGEDIR/dmg-root/file2.txt
   $ mkdir $STAGEDIR/adjacent
   $ echo "adjacent to dmg root during packaging" >> $STAGEDIR/adjacent/adjacent.txt
-  $ pushd $STAGEDIR/dmg-root
+  $ cd $STAGEDIR/dmg-root
   $ ln -s file1.txt ln-file1.txt
   $ ln -s ../adjacent/adjacent.txt ln-adjacent.txt
-  $ popd
+  $ cd $CRAMTMP
 
 With "fail" symlink disposition, we should not be able to package this:
   $ cp $TESTDIR/empty.hfs $OUTPUT/fail.hfs
@@ -59,7 +59,7 @@ With "copy" symlink disposition, we expect to see symlinks:
 
 With "traverse" symlink disposition, we expect to see duplicates of the original files:
   $ cp $TESTDIR/empty.hfs $OUTPUT/traverse.hfs
-  $ BUILDDIR/hfs/hfsplus $OUTPUT/traverse.hfs addall $STAGEDIR/dmg-root/ --symlinks=traverse > /dev/null
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/traverse.hfs addall $STAGEDIR/dmg-root/ --symlinks=traverse > /dev/null
   $ echo $?
   0
   $ mkdir -p $OUTPUT/traverse/extracted
@@ -87,7 +87,7 @@ With "traverse" symlink disposition, we expect to see duplicates of the original
 
 Without any symlink disposition, default is equivalent to "traverse":
   $ cp $TESTDIR/empty.hfs $OUTPUT/default.hfs
-  $ BUILDDIR/hfs/hfsplus $OUTPUT/default.hfs addall $STAGEDIR/dmg-root/ > /dev/null
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/default.hfs addall $STAGEDIR/dmg-root/ > /dev/null
   $ echo $?
   0
   $ mkdir -p $OUTPUT/default/extracted
