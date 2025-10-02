@@ -306,8 +306,8 @@ void addAllInFolder2(
 	char testBuffer[MAXPATHLEN+1];
 	char* pathComponent;
 	int pathLen;
-	size_t totalLen;
 	size_t componentBufSz;
+	size_t nChars;
 	
 	char* name;
 	
@@ -322,11 +322,12 @@ void addAllInFolder2(
 	
 	AbstractFile* file;
 	HFSPlusCatalogFile* outFile;
-	
-	totalLen = strlcpy(fullName, parentName, MAXPATHLEN+1);
-	ASSERT(totalLen <= MAXPATHLEN, "addAllInFolder: parentName too long");
-	pathComponent = fullName + totalLen;
-	componentBufSz = MAXPATHLEN + 1 - totalLen;
+
+	nChars = strlen(parentName);
+	ASSERT(nChars <= MAXPATHLEN, "addAllInFolder: parentName too long");
+	memcpy(fullName, parentName, nChars+1);
+	pathComponent = fullName + nChars;
+	componentBufSz = MAXPATHLEN + 1 - nChars;
 	
 	ASSERT(getcwd(cwd, MAXPATHLEN+1) != NULL, "cannot get current working directory");
 	
@@ -343,9 +344,9 @@ void addAllInFolder2(
 		if(ent->d_name[0] == '.' && (ent->d_name[1] == '\0' || (ent->d_name[1] == '.' && ent->d_name[2] == '\0'))) {
 			continue;
 		}
-		
-		totalLen = strlcpy(pathComponent, ent->d_name, componentBufSz);
-		ASSERT(totalLen < componentBufSz, "addAllInFolder: assembled path too long");
+		nChars = strlen(ent->d_name);
+		ASSERT(nChars < componentBufSz, "addAllInFolder: assembled path too long");
+		memcpy(pathComponent, ent->d_name, nChars+1);
 		pathLen = strlen(fullName);
 		
 		/* Look for an existing item to overwrite. */
@@ -426,6 +427,7 @@ void addAllInFolder2(
 
 			if (assignSpecialPermissions) {
 				if(strncmp(fullName, "/Applications/", sizeof("/Applications/") - 1) == 0) {
+					/* warning: buffer size is not checked here! */
 					testBuffer[0] = '\0';
 					strcpy(testBuffer, "/Applications/");
 					strcat(testBuffer, ent->d_name);
