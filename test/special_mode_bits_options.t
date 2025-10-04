@@ -100,9 +100,9 @@ then dump it back out and cd into it:
 
 We should find every file where we left it, with original permissions. Files
 in unremarkable places would not change permission in any case:
-  $ stat --format %A file1
+  $ stat --format %A file1.txt
   -rw-r--r--
-  $ stat --format %A file2
+  $ stat --format %A file2.txt
   -r--r--r--
 
 The special path code would change the permissions here, although for the
@@ -139,7 +139,7 @@ directories it would to change them to what they already were anyway:
   -rw-r--r--
   $ stat --format %A usr/local/sbin
   drwxr-xr-x
-  $ stat --format %A usr/local/bin/sulb
+  $ stat --format %A usr/local/sbin/sulb
   -rw-r--r--
   $ stat --format %A usr/local/libexec
   drwxr-xr-x
@@ -177,9 +177,9 @@ then dump it back out and cd into it:
   $ cd $OUTPUT/special_modes_yes
 
 Files in unremarkable places would not change permission in any case:
-  $ stat --format %A file1
+  $ stat --format %A file1.txt
   -rw-r--r--
-  $ stat --format %A file2
+  $ stat --format %A file2.txt
   -r--r--r--
 
 For directories the change is moot, but these files should now be executable:
@@ -215,7 +215,7 @@ For directories the change is moot, but these files should now be executable:
   -rwxr-xr-x
   $ stat --format %A usr/local/sbin
   drwxr-xr-x
-  $ stat --format %A usr/local/bin/sulb
+  $ stat --format %A usr/local/sbin/sulb
   -rwxr-xr-x
   $ stat --format %A usr/local/libexec
   drwxr-xr-x
@@ -295,7 +295,7 @@ For directories the change is moot, but these files should now be executable:
   -rwxr-xr-x
   $ stat --format %A usr/local/sbin
   drwxr-xr-x
-  $ stat --format %A usr/local/bin/sulb
+  $ stat --format %A usr/local/sbin/sulb
   -rwxr-xr-x
   $ stat --format %A usr/local/libexec
   drwxr-xr-x
