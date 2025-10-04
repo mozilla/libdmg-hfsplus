@@ -257,9 +257,9 @@ with scripts expecting the behaviors from before the flag existed, so the
 rest of this scenario should look very familiar.
 
 Files in unremarkable places would not change permission in any case:
-  $ stat --format %A file1
+  $ stat --format %A file1.txt
   -rw-r--r--
-  $ stat --format %A file2
+  $ stat --format %A file2.txt
   -r--r--r--
 
 For directories the change is moot, but these files should now be executable:
