@@ -316,12 +316,12 @@ void TestByteOrder()
 void usage(const char* name) {
 	printf("usage: %s <image-file> <ls|cat|mv|mkdir|add|rm|chmod|extract|extractall|rmall|addall|attr|debug> <arguments>\n", name);
 	printf("OPTIONS:\n");
-	printf("\t--symlinks, -s        <fail, traverse, copy>: how to handle symlinks\n");
+	printf("\t--symlinks, -s        <fail, traverse, clone_link>: how to handle symlinks\n");
 	printf("\t                      in the input directory in command `addall`\n");
 	printf("\t--special-modes, -m   <yes, no>: whether to chmod files in the volume\n");
 	printf("\t                      when they are recognized with a name or path\n");
 	printf("\t                      where OS setup or iPhone jailbreaking would\n");
-	printf("\t                      require special permissions");
+	printf("\t                      require special permissions; specific to `addall`");
 }
 
 IncomingSymlinksPolicy must_parse_symlink_policy(const char* policy, const char* bin_name) {
@@ -341,9 +341,9 @@ IncomingSymlinksPolicy must_parse_symlink_policy(const char* policy, const char*
 		free(lowered);
 		return kIncomingSymlinksTraverse;
 	}
-	if (strcmp(lowered, "copy") == 0) {
+	if (strcmp(lowered, "clone_link") == 0) {
 		free(lowered);
-		return kIncomingSymlinksCopy;
+		return kIncomingSymlinksCloneLink;
 	}
 	
 	free(lowered);

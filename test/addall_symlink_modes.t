@@ -29,29 +29,29 @@ With "fail" symlink disposition, we should not be able to package this:
   error: * symlink * (glob)
   [1]
 
-With "copy" symlink disposition, we expect to see symlinks:
-  $ cp $TESTDIR/empty.hfs $OUTPUT/copy.hfs
-  $ $BUILDDIR/hfs/hfsplus $OUTPUT/copy.hfs addall $STAGEDIR/dmg-root/ --symlinks=copy > /dev/null
-  $ mkdir -p $OUTPUT/copy/extracted
-  $ mkdir $OUTPUT/copy/adjacent
-  $ echo "adjacent to extraction target for copy" >> $OUTPUT/copy/adjacent/adjacent.txt
-  $ $BUILDDIR/hfs/hfsplus $OUTPUT/copy.hfs extractall / $OUTPUT/copy/extracted/ > /dev/null
-  $ stat --format %A $OUTPUT/copy/extracted/file1.txt
+With "clone_link" symlink disposition, we expect to see symlinks:
+  $ cp $TESTDIR/empty.hfs $OUTPUT/clone_link.hfs
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/clone_link.hfs addall $STAGEDIR/dmg-root/ --symlinks=clone_link > /dev/null
+  $ mkdir -p $OUTPUT/clone_link/extracted
+  $ mkdir $OUTPUT/clone_link/adjacent
+  $ echo "adjacent to extraction target for clone_link" >> $OUTPUT/clone_link/adjacent/adjacent.txt
+  $ $BUILDDIR/hfs/hfsplus $OUTPUT/clone_link.hfs extractall / $OUTPUT/clone_link/extracted/ > /dev/null
+  $ stat --format %A $OUTPUT/clone_link/extracted/file1.txt
   -rw-r--r--
-  $ cat $OUTPUT/copy/extracted/file1.txt
+  $ cat $OUTPUT/clone_link/extracted/file1.txt
   file1
-  $ stat --format %A $OUTPUT/copy/extracted/file2.txt
+  $ stat --format %A $OUTPUT/clone_link/extracted/file2.txt
   -rw-r--r--
-  $ cat $OUTPUT/copy/extracted/file2.txt
+  $ cat $OUTPUT/clone_link/extracted/file2.txt
   file2
-  $ stat --format %A $OUTPUT/copy/extracted/ln-file1.txt
+  $ stat --format %A $OUTPUT/clone_link/extracted/ln-file1.txt
   lrwxrwxrwx
-  $ cat $OUTPUT/copy/extracted/ln-file1.txt
+  $ cat $OUTPUT/clone_link/extracted/ln-file1.txt
   file1
-  $ stat --format %A $OUTPUT/copy/extracted/ln-adjacent.txt
+  $ stat --format %A $OUTPUT/clone_link/extracted/ln-adjacent.txt
   lrwxrwxrwx
-  $ cat $OUTPUT/copy/extracted/ln-adjacent.txt
-  adjacent to extraction target for copy
+  $ cat $OUTPUT/clone_link/extracted/ln-adjacent.txt
+  adjacent to extraction target for clone_link
 
 With "traverse" symlink disposition, we expect to see duplicates of the original files:
   $ cp $TESTDIR/empty.hfs $OUTPUT/traverse.hfs

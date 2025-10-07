@@ -374,7 +374,7 @@ void addAllInFolder2(
 		if (S_ISLNK(st.st_mode)) {
 			ASSERT(symlinkPolicy != kIncomingSymlinksFail,
 					"addAllInFolder: found a symlink when symlink policy is \"fail\"");
-			if (symlinkPolicy == kIncomingSymlinksCopy) {
+			if (symlinkPolicy == kIncomingSymlinksCloneLink) {
 				testBuffer[0] = '\0';
 				ssize_t zloc = 0;
 				ASSERT((zloc = readlink(ent->d_name, testBuffer, MAXPATHLEN)) >= 0,

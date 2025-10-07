@@ -10,10 +10,12 @@ typedef enum {
 		 in the locaiton of the symlink. */
 	kIncomingSymlinksTraverse,
 
-	/* Copy symlinks encountered in the input, creating symlinks in the resulting
-	   HFS+ volume. The item referred to by the symlink (in its original location)
-	   is not considered and does not need to exist. */
-	kIncomingSymlinksCopy,
+	/* Duplicate symlinks encountered in the input, creating symlinks with
+	   identical paths in the resulting HFS+ volume. Relative links would
+	   be interpreted relative to their new location; absolute links will
+	   remain absolute. The item referred to by the symlink (in its original
+	   location) is not considered and does not need to exist. */
+	kIncomingSymlinksCloneLink,
 
 	/* No symlinks should be in the input. If any are present, crash. */
 	kIncomingSymlinksFail
