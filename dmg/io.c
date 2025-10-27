@@ -91,15 +91,23 @@ static block* blockRead(threadData* d) {
 	size_t readSize = b->run.sectorCount * SECTOR_SIZE;
 
 	if (b->idx == 0) {
-		ASSERT((b->insize = d->in->read(d->in, b->inbuf, readSize)) == readSize, "mRead");	
+		b->insize = d->in->read(d->in, b->inbuf, readSize);
+		ASSERT(b->insize == readSize, "failed to read input data");
 	} else {
 		// Steal from the next block
 		memcpy(b->inbuf, d->nextInBuffer, d->nextInSize);
 		b->insize = d->nextInSize;
 	}
+	ASSERT(b->insize == readSize, "incorrect input block size");
 
 	if (d->numSectors - b->run.sectorCount > 0) {
-		d->nextInSize = d->in->read(d->in, d->nextInBuffer, readSize);
+		size_t nextSectorCount = d->numSectors - b->run.sectorCount;
+		if (nextSectorCount > d->runSectors) {
+			nextSectorCount = d->runSectors;
+		}
+		size_t nextReadSize = nextSectorCount * SECTOR_SIZE;
+		d->nextInSize = d->in->read(d->in, d->nextInBuffer, nextReadSize);
+		ASSERT(d->nextInSize == nextReadSize, "failed to read input data");
 	}
 
 	// printf("run %d: sectors=%" PRId64 ", left=%d\n", b->idx, b->run.sectorCount, d->numSectors);
