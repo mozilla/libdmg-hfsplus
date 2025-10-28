@@ -303,7 +303,6 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 	char* name;
 	
 	DIR* dir;
-	DIR* tmp;
 	
 	HFSCatalogNodeID cnid;
 	
@@ -342,9 +341,11 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 			free(name);
 			list = list->next;
 		}
+
+		struct stat st;
+		ASSERT (lstat(ent->d_name, &st) == 0, "lstat");
 		
-		if((tmp = opendir(ent->d_name)) != NULL) {
-			closedir(tmp);
+		if(S_ISDIR(st.st_mode)) {
 			printf("folder: %s\n", fullName); fflush(stdout);
 			
 			if(cnid == 0) {
@@ -354,13 +355,19 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 			fullName[pathLen] = '/';
 			fullName[pathLen + 1] = '\0';
 			/* Copy permissions from the source folder */
-			struct stat st;
-			ASSERT (lstat(ent->d_name, &st) == 0, "lstat");
 			chmodFile(fullName, (int)st.st_mode, volume);
 			printf("Setting permissions to %06o for %s\n", st.st_mode, fullName);
 			ASSERT(chdir(ent->d_name) == 0, "chdir");
 			addAllInFolder(cnid, volume, fullName);
 			ASSERT(chdir(cwd) == 0, "chdir");
+		} else if (S_ISLNK(st.st_mode)) {
+			printf("symlink: %s\n", fullName); fflush(stdout);
+			ssize_t len;
+			char target[1024];
+			ASSERT((len = readlink(ent->d_name, target, sizeof(target))) != -1, "readlink");
+			ASSERT(len < sizeof(target), "readlink");
+			target[len] = '\0';
+			makeSymlink(fullName, target, volume);
 		} else {
 			printf("file: %s\n", fullName);	fflush(stdout);
 			if(cnid == 0) {
@@ -373,8 +380,6 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 			file->close(file);
 			free(outFile);
 			/* Copy permissions from the source file */
-			struct stat st;
-			ASSERT (lstat(ent->d_name, &st) == 0, "lstat");
 			chmodFile(fullName, (int)st.st_mode, volume);
 			printf("Setting permissions to %06o for %s\n", st.st_mode, fullName);
 			
