@@ -790,11 +790,11 @@ static int growBTree(BTree* tree) {
     
     while(TRUE) {
       descriptor = readBTNodeDescriptor(mapNode, tree);
-      ASSERT(descriptor, "readBTNodeDescriptor");
+      ASSERT(descriptor, "readBTNodeDescriptor failed in growBTree");
 
       if(descriptor->fLink == 0) {
         descriptor->fLink = newNodesStart;
-        ASSERT(writeBTNodeDescriptor(descriptor, mapNode, tree), "writeBTNodeDescriptor");
+        ASSERT(writeBTNodeDescriptor(descriptor, mapNode, tree), "growBTree failed to update existing descriptor");
         
         newDescriptor.fLink = 0;
         newDescriptor.bLink = 0;
@@ -802,7 +802,7 @@ static int growBTree(BTree* tree) {
         newDescriptor.height = 0;
         newDescriptor.numRecords = 1;
         newDescriptor.reserved = 0;
-        ASSERT(writeBTNodeDescriptor(&newDescriptor, descriptor->fLink, tree), "writeBTNodeDescriptor");
+        ASSERT(writeBTNodeDescriptor(&newDescriptor, descriptor->fLink, tree), "growBTree failed to create a new descriptor");
         
         newNodeOffset = descriptor->fLink * tree->headerRec->nodeSize;
         
@@ -826,7 +826,7 @@ static int growBTree(BTree* tree) {
       } else {
         free(buffer);
         free(descriptor);
-        ASSERT(writeBTHeaderRec(tree), "writeBTHeaderRec");
+        ASSERT(writeBTHeaderRec(tree), "growBTree failed to write header");
         return TRUE;
       }
       free(descriptor);

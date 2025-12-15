@@ -247,8 +247,9 @@ size_t getAttribute(Volume* volume, uint32_t fileID, const char* name, uint8_t**
 	size_t size;
 	int exact;
 
-	if(!volume->attrTree)
+	if(!volume->attrTree) {
 		return FALSE;
+	}
 
 	memset(&key, 0 , sizeof(HFSPlusAttrKey));
 	key.fileID = fileID;
@@ -264,23 +265,20 @@ size_t getAttribute(Volume* volume, uint32_t fileID, const char* name, uint8_t**
 		if(record) {
 			free(record);
 		}
-
 		return 0;
 	}
 
-	switch(record->recordType)
-	{
-		case kHFSPlusAttrInlineData:
-			size = record->attrData.size;
-			*data = (uint8_t*) malloc(size);
-			memcpy(*data, record->attrData.data, size);
-			free(record);
-			return size;
-		default:
-			fprintf(stderr, "unsupported attribute node format\n");
-			free(record);
-			return 0;
+	if (record->recordType != kHFSPlusAttrInlineData) {
+		fprintf(stderr, "unsupported attribute node format\n");
+		free(record);
+		return 0;
 	}
+
+	size = record->attrData.size;
+	*data = (uint8_t*) malloc(size);
+	memcpy(*data, record->attrData.data, size);
+	free(record);
+	return size;
 }
 
 int setAttribute(Volume* volume, uint32_t fileID, const char* name, uint8_t* data, size_t size) {
