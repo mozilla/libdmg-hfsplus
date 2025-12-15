@@ -301,9 +301,9 @@ void addAllInFolder2(
 		IncomingSymlinksPolicy symlinkPolicy, char assignSpecialPermissions) {
 	CatalogRecordList* nextEntry;
 	CatalogRecordList* theList;
-	char cwd[MAXPATHLEN+1];
-	char fullName[MAXPATHLEN+1];
-	char testBuffer[MAXPATHLEN+1];
+	char cwd[1024];
+	char fullName[1024];
+	char testBuffer[1024];
 	char* pathComponent;
 	int pathLen;
 	size_t componentBufSz;
@@ -324,12 +324,12 @@ void addAllInFolder2(
 	HFSPlusCatalogFile* outFile;
 
 	nChars = strlen(parentName);
-	ASSERT(nChars <= MAXPATHLEN, "addAllInFolder: parentName too long");
+	ASSERT(nChars < 1024, "addAllInFolder: parentName too long");
 	memcpy(fullName, parentName, nChars+1);
 	pathComponent = fullName + nChars;
-	componentBufSz = MAXPATHLEN + 1 - nChars;
+	componentBufSz = 1024 - nChars;
 	
-	ASSERT(getcwd(cwd, MAXPATHLEN+1) != NULL, "cannot get current working directory");
+	ASSERT(getcwd(cwd, 1024) != NULL, "cannot get current working directory");
 	
 	theList = nextEntry = getFolderContents(folderID, volume);
 	
