@@ -292,7 +292,7 @@ void removeAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* pa
 
 
 void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* parentName) {
-	CatalogRecordList* list;
+	CatalogRecordList* nextEntry;
 	CatalogRecordList* theList;
 	char cwd[1024];
 	char fullName[1024];
@@ -317,7 +317,7 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 	
 	ASSERT(getcwd(cwd, 1024) != NULL, "cannot get current working directory");
 	
-	theList = list = getFolderContents(folderID, volume);
+	theList = nextEntry = getFolderContents(folderID, volume);
 	
 	ASSERT((dir = opendir(cwd)) != NULL, "opendir");
 	
@@ -330,17 +330,17 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 		pathLen = strlen(fullName);
 		
 		cnid = 0;
-		list = theList;
-		while(list != NULL) {
-			name = unicodeToAscii(&list->name);
+		nextEntry = theList;
+		while(nextEntry != NULL) {
+			name = unicodeToAscii(&nextEntry->name);
 			if(strcmp(name, ent->d_name) == 0) {
-				cnid = (list->record->recordType == kHFSPlusFolderRecord) ? (((HFSPlusCatalogFolder*)list->record)->folderID)
-				: (((HFSPlusCatalogFile*)list->record)->fileID);
+				cnid = (nextEntry->record->recordType == kHFSPlusFolderRecord) ? (((HFSPlusCatalogFolder*)nextEntry->record)->folderID)
+				: (((HFSPlusCatalogFile*)nextEntry->record)->fileID);
 				free(name);
 				break;
 			}
 			free(name);
-			list = list->next;
+			nextEntry = nextEntry->next;
 		}
 		
 		if((tmp = opendir(ent->d_name)) != NULL) {
