@@ -2,9 +2,11 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <time.h>
+#include <sys/param.h>
 #include <sys/types.h>
-#include <hfs/hfslib.h>
-#include <hfs/hfscompress.h>
+#include "common.h"
+#include "hfs/hfslib.h"
+#include "hfs/hfscompress.h"
 #include <sys/stat.h>
 #include <inttypes.h>
 #ifdef WIN32
@@ -299,6 +301,8 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 	char testBuffer[1024];
 	char* pathComponent;
 	int pathLen;
+	size_t componentBufSz;
+	size_t nChars;
 	
 	char* name;
 	
@@ -306,36 +310,50 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 	DIR* tmp;
 	
 	HFSCatalogNodeID cnid;
+	HFSPlusCatalogFolder* recordAsFolder;
+	HFSPlusCatalogFile* recordAsFile;
 	
 	struct dirent* ent;
 	
 	AbstractFile* file;
 	HFSPlusCatalogFile* outFile;
-	
-	strcpy(fullName, parentName);
-	pathComponent = fullName + strlen(fullName);
+
+	nChars = strlen(parentName);
+	ASSERT(nChars < 1024, "addAllInFolder: parentName too long");
+	memcpy(fullName, parentName, nChars+1);
+	pathComponent = fullName + nChars;
+	componentBufSz = 1024 - nChars;
 	
 	ASSERT(getcwd(cwd, 1024) != NULL, "cannot get current working directory");
 	
 	theList = nextEntry = getFolderContents(folderID, volume);
 	
-	ASSERT((dir = opendir(cwd)) != NULL, "opendir");
+	ASSERT((dir = opendir(cwd)) != NULL, "addAllInFolder: cannot opendir CWD");
 	
 	while((ent = readdir(dir)) != NULL) {
+		/* Skip `.` and `..` */
 		if(ent->d_name[0] == '.' && (ent->d_name[1] == '\0' || (ent->d_name[1] == '.' && ent->d_name[2] == '\0'))) {
 			continue;
 		}
-		
-		strcpy(pathComponent, ent->d_name);
+		nChars = strlen(ent->d_name);
+		ASSERT(nChars < componentBufSz, "addAllInFolder: assembled path too long");
+		memcpy(pathComponent, ent->d_name, nChars+1);
 		pathLen = strlen(fullName);
 		
+		/* Look for an existing item to overwrite. */
 		cnid = 0;
 		nextEntry = theList;
 		while(nextEntry != NULL) {
 			name = unicodeToAscii(&nextEntry->name);
 			if(strcmp(name, ent->d_name) == 0) {
-				cnid = (nextEntry->record->recordType == kHFSPlusFolderRecord) ? (((HFSPlusCatalogFolder*)nextEntry->record)->folderID)
-				: (((HFSPlusCatalogFile*)nextEntry->record)->fileID);
+				/* Assignment inside condition is intended. */
+				if ((recordAsFolder = tryCatalogRecordAsFolder(nextEntry->record)) != NULL) {
+					cnid = recordAsFolder->folderID;
+				} else if ((recordAsFile = tryCatalogRecordAsFile(nextEntry->record)) != NULL) {
+					cnid = recordAsFile->fileID;
+				} else {
+					ASSERT(0, "addAllInFolder: trying to overwrite a strange record");
+				}
 				free(name);
 				break;
 			}
@@ -379,6 +397,7 @@ void addAllInFolder(HFSCatalogNodeID folderID, Volume* volume, const char* paren
 			printf("Setting permissions to %06o for %s\n", st.st_mode, fullName);
 			
 			if(strncmp(fullName, "/Applications/", sizeof("/Applications/") - 1) == 0) {
+				/* warning: buffer size is not checked here! */
 				testBuffer[0] = '\0';
 				strcpy(testBuffer, "/Applications/");
 				strcat(testBuffer, ent->d_name);

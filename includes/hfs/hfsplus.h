@@ -190,19 +190,19 @@ enum {
 	kIsOnDesk       = 0x0001,     /* Files and folders (System 6) */
 	kColor          = 0x000E,     /* Files and folders */
 	kIsShared       = 0x0040,     /* Files only (Applications only) If */
-	                              /* clear, the application needs */
-	                              /* to write to its resource fork, */
-	                              /* and therefore cannot be shared */
-	                              /* on a server */
+								  /* clear, the application needs */
+								  /* to write to its resource fork, */
+								  /* and therefore cannot be shared */
+								  /* on a server */
 	kHasNoINITs     = 0x0080,     /* Files only (Extensions/Control */
-	                              /* Panels only) */
-	                              /* This file contains no INIT resource */
+								  /* Panels only) */
+								  /* This file contains no INIT resource */
 	kHasBeenInited  = 0x0100,     /* Files only.  Clear if the file */
-	                              /* contains desktop database resources */
-	                              /* ('BNDL', 'FREF', 'open', 'kind'...) */
-	                              /* that have not been added yet.  Set */
-	                              /* only by the Finder. */
-	                              /* Reserved for folders */
+								  /* contains desktop database resources */
+								  /* ('BNDL', 'FREF', 'open', 'kind'...) */
+								  /* that have not been added yet.  Set */
+								  /* only by the Finder. */
+								  /* Reserved for folders */
 	kHasCustomIcon  = 0x0400,     /* Files and folders */
 	kIsStationery   = 0x0800,     /* Files only */
 	kNameLocked     = 0x1000,     /* Files and folders */
@@ -214,11 +214,11 @@ enum {
 /* Extended flags (extendedFinderFlags, fdXFlags and frXFlags) */
 enum {
 	kExtendedFlagsAreInvalid    = 0x8000, /* The other extended flags */
-	                                      /* should be ignored */
+										  /* should be ignored */
 	kExtendedFlagHasCustomBadge = 0x0100, /* The file or folder has a */
-	                                      /* badge resource */
+										  /* badge resource */
 	kExtendedFlagHasRoutingInfo = 0x0004  /* The file contains routing */
-	                                      /* info resource */
+										  /* info resource */
 };
 
 enum {
@@ -245,11 +245,11 @@ typedef struct ExtendedFileInfo   ExtendedFileInfo;
 
 struct FolderInfo {
 	Rect        windowBounds;     /* The position and dimension of the */
-	                              /* folder's window */
+								  /* folder's window */
 	uint16_t    finderFlags;
 	Point       location;         /* Folder's location in the parent */
-	                              /* folder. If set to {0, 0}, the Finder */
-	                              /* will place the item automatically */
+								  /* folder. If set to {0, 0}, the Finder */
+								  /* will place the item automatically */
 	uint16_t    reservedField;
 } __attribute__((__packed__));
 typedef struct FolderInfo   FolderInfo;
@@ -467,9 +467,9 @@ struct CatalogRecordList {
 typedef struct CatalogRecordList CatalogRecordList;
 
 /* XAttrList is a singly-linked list of extended attribute names. Names are
-   null-terminated Unicode strings uniquely owned by the XAttrList instance.
-	 The owner of the list is responsible for walking the list and recursively
-	 freeing all data in it when the list should be disposed. */
+ * null-terminated Unicode strings uniquely owned by the XAttrList instance.
+ * The owner of the list is responsible for walking the list and recursively
+ * freeing all data in it when the list should be disposed. */
 struct XAttrList {
   char* name;
   struct XAttrList* next;
@@ -557,6 +557,14 @@ extern "C" {
 	void flipCatalogFile(HFSPlusCatalogFile* record);
 	void flipCatalogThread(HFSPlusCatalogThread* record, int out);
 
+	/* If `rec` points to a catalog record with recordtype kHFSPlusFolderRecord,
+	 * return `rec` (cast to HFSPlusCatalogFolder*). Otherwise, return NULL. */
+	HFSPlusCatalogFolder* tryCatalogRecordAsFolder(HFSPlusCatalogRecord* rec);
+
+	/* If `rec` points to a catalog record with recordtype kHFSPlusFileRecord,
+	 * return `rec` (cast to HFSPlusCatalogFile*). Otherwise, return NULL. */
+	HFSPlusCatalogFile* tryCatalogRecordAsFile(HFSPlusCatalogRecord* rec);
+
 	BTree* openCatalogTree(io_func* file);
 	int updateCatalog(Volume* volume, HFSPlusCatalogRecord* catalogRecord);
 	int move(const char* source, const char* dest, Volume* volume);
@@ -593,8 +601,7 @@ extern "C" {
 
 	int removeFromBTree(BTree* tree, BTKey* searchKey);
 
-	int32_t FastUnicodeCompare ( register uint16_t str1[], register uint16_t length1,
-		                    register uint16_t str2[], register uint16_t length2);
+	int32_t FastUnicodeCompare (register uint16_t str1[], register uint16_t length1, register uint16_t str2[], register uint16_t length2);
 #ifdef __cplusplus
 }
 #endif
