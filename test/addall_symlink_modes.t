@@ -26,7 +26,7 @@ Construct inputs:
 With "fail" symlink disposition, we should not be able to package this:
   $ cp $TESTDIR/empty.hfs $OUTPUT/fail.hfs
   $ $BUILDDIR/hfs/hfsplus $OUTPUT/fail.hfs addall $STAGEDIR/dmg-root/ --symlinks=fail > /dev/null
-  error: * symlink * (glob)
+  error in * (*.c, *): * symlink * (glob)
   [1]
 
 With "clone_link" symlink disposition, we expect to see symlinks:
