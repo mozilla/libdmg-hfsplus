@@ -731,7 +731,9 @@ void hfs_ls(Volume* volume, const char* path) {
 		printf("No such file or directory\n");
 	}
 
-	printf("Total filesystem size: %d, free: %d\n", (volume->volumeHeader->totalBlocks - volume->volumeHeader->freeBlocks) * volume->volumeHeader->blockSize, volume->volumeHeader->freeBlocks * volume->volumeHeader->blockSize);
+	printf("Total filesystem size: %" PRIu64 ", free: %" PRIu64 "\n",
+		hfsBlocksToBytes(volume, volume->volumeHeader->totalBlocks - volume->volumeHeader->freeBlocks),
+		hfsBlocksToBytes(volume, volume->volumeHeader->freeBlocks));
 
 	free(record);
 }

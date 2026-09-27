@@ -88,7 +88,7 @@ int allocate(RawFile* rawFile, off_t size) {
 				}
 
 				/* zero out allocated block */
-				ASSERT(WRITE(volume->image, curBlock * volume->volumeHeader->blockSize, volume->volumeHeader->blockSize, zeros), "WRITE");
+				ASSERT(WRITE(volume->image, hfsBlocksToBytes(volume, curBlock), volume->volumeHeader->blockSize, zeros), "WRITE");
 
 				setBlockUsed(volume, curBlock, TRUE);
 				volume->volumeHeader->freeBlocks--;
