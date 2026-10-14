@@ -308,92 +308,159 @@ BLKXTable* insertBLKX(AbstractFile* out_, AbstractFile* in_, uint32_t firstSecto
 
 #define DEFAULT_BUFFER_SIZE (1 * 1024 * 1024)
 
-void extractBLKX(AbstractFile* in, AbstractFile* out, BLKXTable* blkx) {
-	unsigned char* inBuffer;
-	unsigned char* outBuffer;
-	unsigned char zero;
+typedef struct {
+	AbstractFile* in;
+	AbstractFile* out;
+	BLKXTable* blkx;
+	off_t initialOffset;
 	size_t bufferSize;
+	pthread_mutex_t mut;
+	pthread_mutex_t inMut;
+	pthread_mutex_t outMut;
+	uint32_t runCount;
+	uint32_t nextRun;
+} extractData;
+
+static void extractRun(extractData* d, uint32_t i, unsigned char* inBuffer) {
+	BLKXTable* blkx = d->blkx;
+	unsigned char* outBuffer;
 	size_t have;
 	size_t expectedSize;
-	off_t initialOffset;
-	int i;
-	int ret;
 	uint32_t type;
 
-	bufferSize = SECTOR_SIZE * blkx->decompressBufferRequested;
-	ASSERT(inBuffer = (unsigned char*) malloc(bufferSize), "malloc");
+	if(blkx->runs[i].compLength == 0) {
+		return;
+	}
 
-	initialOffset =	out->tell(out);
-	ASSERT(initialOffset != -1, "ftello");
+	switch(blkx->runs[i].type) {
+		case BLOCK_RAW:
+			ASSERT(pthread_mutex_lock(&d->inMut) == 0, "pthread_mutex_lock");
+			ASSERT(pthread_mutex_lock(&d->outMut) == 0, "pthread_mutex_lock");
+			ASSERT(d->in->seek(d->in, blkx->dataStart + blkx->runs[i].compOffset) == 0, "fseeko");
+			ASSERT(d->out->seek(d->out, d->initialOffset + (blkx->runs[i].sectorStart * SECTOR_SIZE)) == 0, "mSeek");
+			if(blkx->runs[i].compLength > d->bufferSize) {
+				uint64_t left = blkx->runs[i].compLength;
+				void* pageBuffer = malloc(DEFAULT_BUFFER_SIZE);
+				while(left > 0) {
+					size_t thisRead;
+					if(left > DEFAULT_BUFFER_SIZE) {
+						thisRead = DEFAULT_BUFFER_SIZE;
+					} else {
+						thisRead = left;
+					}
+					ASSERT((have = d->in->read(d->in, pageBuffer, thisRead)) == thisRead, "fread");
+					ASSERT(d->out->write(d->out, pageBuffer, have) == have, "mWrite");
+					left -= have;
+				}
+				free(pageBuffer);
+			} else {
+				ASSERT((have = d->in->read(d->in, inBuffer, blkx->runs[i].compLength)) == blkx->runs[i].compLength, "fread");
+				ASSERT(d->out->write(d->out, inBuffer, have) == have, "mWrite");
+			}
+			ASSERT(pthread_mutex_unlock(&d->outMut) == 0, "pthread_mutex_unlock");
+			ASSERT(pthread_mutex_unlock(&d->inMut) == 0, "pthread_mutex_unlock");
+			break;
+		case BLOCK_IGNORE:
+		case BLOCK_COMMENT:
+		case BLOCK_TERMINATOR:
+			break;
+		default:
+			type = blkx->runs[i].type;
+			if (compressionBlockTypeSupported(type) != 0) {
+				fprintf(stderr, "Unsupported block type %#08x\n", type);
+				exit(1);
+			}
 
-	zero = 0;
+			expectedSize = blkx->runs[i].sectorCount * SECTOR_SIZE;
+			ASSERT(outBuffer = (unsigned char*)malloc(expectedSize), "malloc");
+			ASSERT(pthread_mutex_lock(&d->inMut) == 0, "pthread_mutex_lock");
+			ASSERT(d->in->seek(d->in, blkx->dataStart + blkx->runs[i].compOffset) == 0, "fseeko");
+			ASSERT(d->in->read(d->in, inBuffer, blkx->runs[i].compLength) == blkx->runs[i].compLength, "fread");
+			ASSERT(pthread_mutex_unlock(&d->inMut) == 0, "pthread_mutex_unlock");
+			ASSERT(decompressRun(type, inBuffer, blkx->runs[i].compLength, outBuffer, expectedSize) == 0,
+				"decompression failed");
+			ASSERT(pthread_mutex_lock(&d->outMut) == 0, "pthread_mutex_lock");
+			ASSERT(d->out->seek(d->out, d->initialOffset + (blkx->runs[i].sectorStart * SECTOR_SIZE)) == 0, "mSeek");
+			ASSERT(d->out->write(d->out, outBuffer, expectedSize) == expectedSize, "mWrite");
+			ASSERT(pthread_mutex_unlock(&d->outMut) == 0, "pthread_mutex_unlock");
+			free(outBuffer);
+	}
+}
 
-	for(i = 0; i < blkx->blocksRunCount; i++) {
-		ASSERT(in->seek(in, blkx->dataStart + blkx->runs[i].compOffset) == 0, "fseeko");
-		ASSERT(out->seek(out, initialOffset + (blkx->runs[i].sectorStart * SECTOR_SIZE)) == 0, "mSeek");
+static void* extractWorker(void* arg) {
+	extractData* d = (extractData*)arg;
+	unsigned char* inBuffer;
+	uint32_t i;
 
-		if(blkx->runs[i].sectorCount > 0) {
-			ASSERT(out->seek(out, initialOffset + (blkx->runs[i].sectorStart + blkx->runs[i].sectorCount) * SECTOR_SIZE - 1) == 0, "mSeek");
-			ASSERT(out->write(out, &zero, 1) == 1, "mWrite");
-			ASSERT(out->seek(out, initialOffset + (blkx->runs[i].sectorStart * SECTOR_SIZE)) == 0, "mSeek");
+	ASSERT(inBuffer = (unsigned char*) malloc(d->bufferSize), "malloc");
+	for(;;) {
+		ASSERT(pthread_mutex_lock(&d->mut) == 0, "pthread_mutex_lock");
+		i = d->nextRun++;
+		ASSERT(pthread_mutex_unlock(&d->mut) == 0, "pthread_mutex_unlock");
+		if(i >= d->runCount) {
+			break;
 		}
+		extractRun(d, i, inBuffer);
+	}
+	free(inBuffer);
+	return NULL;
+}
 
+void extractBLKX(AbstractFile* in, AbstractFile* out, BLKXTable* blkx) {
+	extractData d;
+	unsigned char zero;
+	uint64_t endSector;
+	long nthreads;
+	pthread_t* threads;
+	uint32_t i;
+
+	d.in = in;
+	d.out = out;
+	d.blkx = blkx;
+	d.bufferSize = SECTOR_SIZE * blkx->decompressBufferRequested;
+	d.nextRun = 0;
+	ASSERT(pthread_mutex_init(&d.mut, NULL) == 0, "pthread_mutex_init");
+	ASSERT(pthread_mutex_init(&d.inMut, NULL) == 0, "pthread_mutex_init");
+	ASSERT(pthread_mutex_init(&d.outMut, NULL) == 0, "pthread_mutex_init");
+
+	d.initialOffset = out->tell(out);
+	ASSERT(d.initialOffset != -1, "ftello");
+
+	// Size the output once up front, so that runs can be written in any order.
+	endSector = 0;
+	for(i = 0; i < blkx->blocksRunCount; i++) {
 		if(blkx->runs[i].type == BLOCK_TERMINATOR) {
 			break;
 		}
-
-		if( blkx->runs[i].compLength == 0) {
-			continue;
-		}
-
-		printf("run %d: start=%" PRId64 " sectors=%" PRId64 ", length=%" PRId64 ", fileOffset=0x%" PRIx64 "\n", i, initialOffset + (blkx->runs[i].sectorStart * SECTOR_SIZE), blkx->runs[i].sectorCount, blkx->runs[i].compLength, blkx->runs[i].compOffset);
-
-
-
-		switch(blkx->runs[i].type) {
-			case BLOCK_RAW:
-				if(blkx->runs[i].compLength > bufferSize) {
-					uint64_t left = blkx->runs[i].compLength;
-					void* pageBuffer = malloc(DEFAULT_BUFFER_SIZE);
-					while(left > 0) {
-						size_t thisRead;
-						if(left > DEFAULT_BUFFER_SIZE) {
-							thisRead = DEFAULT_BUFFER_SIZE;
-						} else {
-							thisRead = left;
-						}
-						ASSERT((have = in->read(in, pageBuffer, thisRead)) == thisRead, "fread");
-						ASSERT(out->write(out, pageBuffer, have) == have, "mWrite");
-						left -= have;
-					}
-					free(pageBuffer);
-				} else {
-					ASSERT((have = in->read(in, inBuffer, blkx->runs[i].compLength)) == blkx->runs[i].compLength, "fread");
-					ASSERT(out->write(out, inBuffer, have) == have, "mWrite");
-				}
-				break;
-			case BLOCK_IGNORE:
-				break;
-			case BLOCK_COMMENT:
-				break;
-			case BLOCK_TERMINATOR:
-				break;
-			default:
-				type = blkx->runs[i].type;
-				if (compressionBlockTypeSupported(type) != 0) {
-					fprintf(stderr, "Unsupported block type %#08x\n", type);
-					exit(1);
-				}
-
-				expectedSize = blkx->runs[i].sectorCount * SECTOR_SIZE;
-				ASSERT(outBuffer = (unsigned char*)malloc(expectedSize), "malloc");
-				ASSERT(in->read(in, inBuffer, blkx->runs[i].compLength) == blkx->runs[i].compLength, "fread");
-				ASSERT(decompressRun(type, inBuffer, blkx->runs[i].compLength, outBuffer, expectedSize) == 0,
-					"decompression failed");
-				ASSERT(out->write(out, outBuffer, expectedSize) == expectedSize, "mWrite");
-				free(outBuffer);
+		if(blkx->runs[i].sectorStart + blkx->runs[i].sectorCount > endSector) {
+			endSector = blkx->runs[i].sectorStart + blkx->runs[i].sectorCount;
 		}
 	}
+	if(endSector > 0) {
+		zero = 0;
+		ASSERT(out->seek(out, d.initialOffset + endSector * SECTOR_SIZE - 1) == 0, "mSeek");
+		ASSERT(out->write(out, &zero, 1) == 1, "mWrite");
+	}
 
-	free(inBuffer);
+	d.runCount = i;
+
+	nthreads = sysconf(_SC_NPROCESSORS_ONLN);
+	if(nthreads > d.runCount) {
+		nthreads = d.runCount;
+	}
+	if(nthreads < 1) {
+		nthreads = 1;
+	}
+	ASSERT(threads = (pthread_t*) malloc(nthreads * sizeof(pthread_t)), "malloc");
+	for(i = 0; i < nthreads; i++) {
+		ASSERT(pthread_create(&threads[i], NULL, extractWorker, &d) == 0, "pthread_create");
+	}
+	for(i = 0; i < nthreads; i++) {
+		ASSERT(pthread_join(threads[i], NULL) == 0, "pthread_join");
+	}
+	free(threads);
+
+	ASSERT(pthread_mutex_destroy(&d.mut) == 0, "pthread_mutex_destroy");
+	ASSERT(pthread_mutex_destroy(&d.inMut) == 0, "pthread_mutex_destroy");
+	ASSERT(pthread_mutex_destroy(&d.outMut) == 0, "pthread_mutex_destroy");
 }
