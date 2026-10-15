@@ -1,4 +1,5 @@
 #include <string.h>
+#include <inttypes.h>
 #include "common.h"
 #include "abstractfile.h"
 #include <dmg/attribution.h>
@@ -114,9 +115,20 @@ int buildDmg(AbstractFile* abstractIn, AbstractFile* abstractOut, unsigned int B
 	uint32_t plistSize;
 	uint32_t dataForkChecksum;
 
+	uint64_t volumeSize;
+	uint32_t volumeSectors;
+
 	io = IOFuncFromAbstractFile(abstractIn);
 	ASSERT(volume = openVolume(io), "parse HFS volume");
 	volumeHeader = volume->volumeHeader;
+
+	volumeSize = hfsBlocksToBytes(volume, volumeHeader->totalBlocks);
+	/* The Apple partition map stores sector counts in 32 bits. */
+	if(volumeSize / SECTOR_SIZE > UINT32_MAX) {
+		fprintf(stderr, "HFS+ volume too large for an Apple partition map (%" PRIu64 " bytes)\n", volumeSize);
+		return FALSE;
+	}
+	volumeSectors = volumeSize / SECTOR_SIZE;
 
 
 	if(volumeHeader->signature != HFSX_SIGNATURE) {
@@ -132,9 +144,9 @@ int buildDmg(AbstractFile* abstractIn, AbstractFile* abstractOut, unsigned int B
 
 	printf("Creating and writing DDM and partition map...\n"); fflush(stdout);
 
-	DDM = createDriverDescriptorMap((volumeHeader->totalBlocks * volumeHeader->blockSize)/SECTOR_SIZE, BlockSize);
+	DDM = createDriverDescriptorMap(volumeSectors, BlockSize);
 
-	partitions = createApplePartitionMap((volumeHeader->totalBlocks * volumeHeader->blockSize)/SECTOR_SIZE, HFSX_VOLUME_TYPE, BlockSize);
+	partitions = createApplePartitionMap(volumeSectors, HFSX_VOLUME_TYPE, BlockSize);
 
 	int pNum = writeDriverDescriptorMap(-1, abstractOut, DDM, BlockSize, &CRCProxy, (void*) (&dataForkToken), &resources, comp, runSectors);
 	free(DDM);
@@ -158,7 +170,7 @@ int buildDmg(AbstractFile* abstractIn, AbstractFile* abstractOut, unsigned int B
 		attribution->beforeMainBlkx(attribution, abstractOut, &dataForkToken);
 	}
 
-	blkx = insertBLKX(abstractOut, abstractIn, USER_OFFSET, (volumeHeader->totalBlocks * volumeHeader->blockSize)/SECTOR_SIZE,
+	blkx = insertBLKX(abstractOut, abstractIn, USER_OFFSET, volumeSectors,
 				pNum, CHECKSUM_UDIF_CRC32, &BlockSHA1CRC, &uncompressedToken, &CRCProxy, &dataForkToken, volume, attribution, comp, runSectors);
 
 	AttributionResource attributionResource;
@@ -213,7 +225,7 @@ int buildDmg(AbstractFile* abstractIn, AbstractFile* abstractOut, unsigned int B
 
 	printf("Writing free partition...\n"); fflush(stdout);
 
-	pNum = writeFreePartition(pNum, abstractOut, USER_OFFSET + (volumeHeader->totalBlocks * volumeHeader->blockSize)/SECTOR_SIZE,
+	pNum = writeFreePartition(pNum, abstractOut, USER_OFFSET + volumeSectors,
 			(FREE_SIZE + (BlockSize / SECTOR_SIZE / 2)) / (BlockSize / SECTOR_SIZE) * (BlockSize / SECTOR_SIZE), &resources);
 
 	dataForkChecksum = dataForkToken.crc;
@@ -268,7 +280,7 @@ int buildDmg(AbstractFile* abstractIn, AbstractFile* abstractOut, unsigned int B
 	printf("Master checksum: %x\n", koly.fUDIFMasterChecksum.data[0]); fflush(stdout);
 
 	koly.fUDIFImageVariant = kUDIFDeviceImageType;
-	koly.fUDIFSectorCount = (volumeHeader->totalBlocks * volumeHeader->blockSize)/SECTOR_SIZE
+	koly.fUDIFSectorCount = volumeSectors
 		+ ((EXTRA_SIZE + (BlockSize / SECTOR_SIZE / 2)) / (BlockSize / SECTOR_SIZE) * (BlockSize / SECTOR_SIZE));
 	koly.reserved2 = 0;
 	koly.reserved3 = 0;

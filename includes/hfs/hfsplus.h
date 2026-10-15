@@ -505,6 +505,14 @@ typedef struct {
   HFSCatalogNodeID metadataDir;
 } Volume;
 
+/* Size in bytes of `blocks` allocation blocks, or equivalently the byte
+ * offset of block number `blocks`. Block numbers/counts and the block size
+ * are all 32-bit on disk, so the product must be formed in 64 bits or it
+ * wraps for volumes of 4 GiB and larger. */
+static inline uint64_t hfsBlocksToBytes(const Volume* volume, uint32_t blocks) {
+  return (uint64_t)blocks * volume->volumeHeader->blockSize;
+}
+
 
 typedef struct {
 	HFSCatalogNodeID id;
